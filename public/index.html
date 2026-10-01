@@ -18,240 +18,373 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600&display=swap" rel="stylesheet">
 <style>
-  /* Structure follows the Kitabisa reference (white pill bar, centred heading, floating white
-     card, full-width pill CTA with chevron, icon grid), kept in Azzifa's own pink palette.
+  /* Soft Structuralism: near-white blush canvas, bold grotesk type, floating components with
+     very diffuse ambient shadows. Every major surface is a "double bezel" — a translucent outer
+     tray (the transparent border) holding an opaque inner core with its own hairline.
      One typeface throughout; hierarchy comes from weight, size and colour. */
   :root{
-    --paper:#FBEEE9; --paper-dim:#F4DFD9; --card:#FFFDFB; --float:#FFFDFB;
-        --ink:#3A222B; --ink-soft:#8A6B74;
-    --rose:#D6456E; --clay:#D6456E; --line:#ECD3CC; --hover:rgba(255,255,255,.55);
-    --shadow-card:0 20px 44px -28px rgba(58,34,43,.30), 0 2px 6px rgba(58,34,43,.05);
-    --shadow-float:0 14px 30px -18px rgba(58,34,43,.30);
-    --r-card:24px; --r-inner:18px; --r-pill:999px; --r-input:16px; --ease:cubic-bezier(.32,.72,0,1);
+    --paper:#FAF4F2; --well:#F6ECE9; --paper-dim:#F2E4E0; --card:#FFFFFF; --float:#FFFFFF; --glass:rgba(255,255,255,.74);
+    --ink:#2A1920; --ink-soft:#8B6F78;
+    --rose:#D6456E; --clay:#D6456E; --rose-soft:rgba(214,69,110,.10); --gold:#D9A21B;
+    --line:rgba(58,34,43,.10); --ring:rgba(58,34,43,.06); --shell:rgba(58,34,43,.04); --hi:rgba(255,255,255,.9);
+    --hover:rgba(255,255,255,.55);
+    --shadow-card:0 44px 80px -52px rgba(120,60,80,.38), 0 14px 32px -24px rgba(120,60,80,.16);
+    --shadow-float:0 22px 44px -26px rgba(120,60,80,.34);
+    --glow-a:rgba(214,69,110,.13); --glow-b:rgba(255,170,130,.17);
+    --r-card:32px; --bezel:6px; --r-inner:22px; --r-pill:999px; --r-input:20px; --ease:cubic-bezier(.32,.72,0,1);
     box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
   }
   :root[data-theme="dark"]{
-    --paper:#26181C; --paper-dim:#35232A; --card:#302027; --float:#46303A;
-        --ink:#F7E6ED; --ink-soft:#B99AA2;
-    --rose:#E0447E; --clay:#E0447E; --line:#4A3239; --hover:rgba(255,255,255,.07);
-    --shadow-card:0 20px 44px -28px rgba(0,0,0,.6), 0 2px 6px rgba(0,0,0,.2);
-    --shadow-float:0 14px 30px -18px rgba(0,0,0,.6);
+    --paper:#140D10; --well:#1B1216; --paper-dim:#2A1C22; --card:#20151A; --float:#2A1C22; --glass:rgba(36,24,29,.72);
+    --ink:#F7E9EE; --ink-soft:#A98C95;
+    --rose:#EC5A8C; --clay:#EC5A8C; --rose-soft:rgba(236,90,140,.14); --gold:#F0C04A;
+    --line:rgba(255,255,255,.10); --ring:rgba(255,255,255,.08); --shell:rgba(255,255,255,.04); --hi:rgba(255,255,255,.07);
+    --hover:rgba(255,255,255,.07);
+    --shadow-card:0 44px 80px -52px rgba(0,0,0,.9), 0 14px 32px -24px rgba(0,0,0,.5);
+    --shadow-float:0 22px 44px -26px rgba(0,0,0,.8);
+    --glow-a:rgba(236,90,140,.16); --glow-b:rgba(255,150,110,.08);
   }
   *{box-sizing:border-box;}
   html{scroll-behavior:smooth; scrollbar-gutter:stable;}
-  html,body{height:100%;}
+  html,body{min-height:100%;}
   body{margin:0; background:var(--paper); color:var(--ink); font-family:'Plus Jakarta Sans',sans-serif; -webkit-font-smoothing:antialiased;}
+  /* Ambient light: fixed and non-interactive, so it never repaints while the page scrolls. */
+  body::before{content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
+    background:radial-gradient(60% 46% at 8% 0%, var(--glow-a), transparent 70%), radial-gradient(52% 44% at 100% 18%, var(--glow-b), transparent 70%), radial-gradient(60% 50% at 62% 112%, var(--glow-a), transparent 70%);}
   button, input, textarea{font-family:inherit;}
-  .app{max-width:480px; margin:0 auto; padding:0 0 60px; min-height:100%; animation:settle .6s var(--ease) both;}
-  @keyframes settle{from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);}}
+  /* Opacity only: a transform here would trap the fixed bottom nav inside .app. */
+  .app{max-width:520px; margin:0 auto; padding:0 0 132px; min-height:100dvh; animation:settle .8s var(--ease) both;}
+  @keyframes settle{from{opacity:0;} to{opacity:1;}}
 
-  /* ---- Hero (tinted block, rounded bottom) ---- */
-  .hero{padding:16px 20px 24px;}
-  .topbar{display:flex; align-items:center; gap:8px; background:var(--float); border-radius:var(--r-pill); padding:7px 8px 7px 12px; box-shadow:var(--shadow-float);}
+  /* ---- Double bezel: transparent border = outer tray, padding-box fill = inner core ---- */
+  .card, .stat{border:var(--bezel) solid transparent; background:linear-gradient(var(--card),var(--card)) padding-box, var(--shell) border-box;
+    box-shadow:0 0 0 1px var(--ring), inset 0 0 0 1px var(--ring), inset 0 1px 1px var(--hi), var(--shadow-card);}
+
+  /* ---- Eyebrow tag ---- */
+  .eyebrow{display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:var(--r-pill); background:var(--rose-soft); color:var(--rose); font-size:10px; font-weight:700; line-height:1.4; letter-spacing:.2em; text-transform:uppercase;}
+
+  /* ---- Hero ---- */
+  .hero{padding:20px 16px 8px;}
+  .topbar{position:relative; z-index:10; display:flex; align-items:center; gap:8px; background:var(--card); border-radius:var(--r-pill); padding:7px 8px 7px 12px; box-shadow:0 0 0 1px var(--ring), inset 0 1px 1px var(--hi), var(--shadow-float);}
   .topbar-brand{display:flex; align-items:center; gap:9px; min-width:0; flex:1;}
   .topbar-brand img{width:28px; height:28px; flex-shrink:0; display:block;}
   .date{font:700 13px 'Plus Jakarta Sans',sans-serif; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .topbar-actions{display:flex; align-items:center; gap:6px; flex-shrink:0;}
-  .streak-pill{display:inline-flex; align-items:center; gap:5px; background:var(--paper-dim); padding:6px 10px; border-radius:var(--r-pill); font:600 12px 'Plus Jakarta Sans',sans-serif; color:var(--ink-soft); white-space:nowrap;}
+  .streak-pill{display:inline-flex; align-items:center; gap:5px; background:var(--well); padding:6px 11px; border-radius:var(--r-pill); font:600 12px 'Plus Jakarta Sans',sans-serif; color:var(--ink-soft); white-space:nowrap;}
   .streak-pill b{color:var(--clay); font-size:13px;}
   .fire{display:inline-block;}
-  .icon-btn{flex-shrink:0; width:34px; height:34px; border-radius:50%; border:none; background:var(--paper-dim); color:var(--ink-soft); cursor:pointer; display:inline-flex; align-items:center; justify-content:center;}
+  .icon-btn{flex-shrink:0; width:36px; height:36px; border-radius:50%; border:none; background:var(--well); color:var(--ink-soft); cursor:pointer; display:inline-flex; align-items:center; justify-content:center;}
   .icon-btn.on{background:var(--clay); color:#fff;}
-  .hero-h{margin:26px 0 10px; font-weight:800; font-size:28px; line-height:1.18; letter-spacing:-0.02em; text-align:center; color:var(--ink);}
-  .brand-name{display:inline-block; padding:0 .3em .08em; border-radius:.4em; background:var(--clay); color:#fff;}
-  .hero-sub{margin:0 auto 24px; max-width:30ch; font-weight:500; font-size:15px; line-height:1.5; text-align:center; color:var(--ink-soft);}
+  .icon-btn:disabled{opacity:.35; cursor:default;}
+  .hero-copy{margin:34px 4px 0;}
+  .hero-h{margin:16px 0 14px; font-weight:800; font-size:clamp(34px,9.6vw,44px); line-height:1.04; letter-spacing:-0.04em; color:var(--ink); text-wrap:balance;}
+  .brand-name{display:inline-block; padding:0 .28em .06em; border-radius:.34em; background:var(--clay); color:#fff; transform:rotate(-2deg); box-shadow:0 18px 30px -18px var(--clay);}
+  .hero-sub{margin:0 0 28px; max-width:34ch; font-weight:500; font-size:15px; line-height:1.55; color:var(--ink-soft);}
 
   /* ---- Chat bubble: left aligned, with avatar and name ---- */
   .chat{display:flex; align-items:flex-end; gap:10px; margin:0 0 20px;}
-  .chat-avatar{flex-shrink:0; width:36px; height:36px; padding:6px; border-radius:50%; background:var(--float); object-fit:contain; box-shadow:var(--shadow-float);}
-  .chat-bubble{min-width:0; max-width:100%; background:var(--float); border-radius:18px 18px 18px 6px; padding:10px 15px 12px; box-shadow:var(--shadow-float);}
-  .chat-stack{display:flex; flex-direction:column; align-items:flex-start; gap:4px; min-width:0; max-width:calc(100% - 48px);}
-  .chat-stack .chat-bubble:not(:last-child){border-bottom-left-radius:8px;}
-  .chat-stack .chat-bubble:not(:first-child){border-top-left-radius:8px;}
-  .chat-bubble.late{transform-origin:0 100%; animation:bubbleIn .5s var(--ease) both;}
+  .chat-avatar{flex-shrink:0; width:38px; height:38px; padding:6px; border-radius:50%; background:var(--card); object-fit:contain; box-shadow:0 0 0 1px var(--ring), var(--shadow-float);}
+  .chat-bubble{min-width:0; max-width:100%; background:var(--card); border-radius:22px 22px 22px 8px; padding:11px 16px 13px; box-shadow:0 0 0 1px var(--ring), inset 0 1px 1px var(--hi), var(--shadow-float);}
+  .chat-stack{display:flex; flex-direction:column; align-items:flex-start; gap:5px; min-width:0; max-width:calc(100% - 48px);}
+  .chat-stack .chat-bubble:not(:last-child){border-bottom-left-radius:10px;}
+  .chat-stack .chat-bubble:not(:first-child){border-top-left-radius:10px;}
+  .chat-bubble.late{transform-origin:0 100%; animation:bubbleIn .7s var(--ease) both;}
   .chat-name{font:700 11.5px 'Plus Jakarta Sans',sans-serif; color:var(--clay); margin-bottom:2px;}
   .chat-text{font:500 14.5px/1.55 'Plus Jakarta Sans',sans-serif; color:var(--ink);}
-  .chat-bubble.intro{transform-origin:0 100%; animation:bubbleIn .55s var(--ease) .3s both;}
-  .chat-avatar.intro{animation:bubbleIn .45s var(--ease) .2s both;}
-  @keyframes bubbleIn{from{opacity:0; transform:translateY(8px) scale(.94);} to{opacity:1; transform:none;}}
+  .chat-bubble.intro{transform-origin:0 100%; animation:bubbleIn .7s var(--ease) .3s both;}
+  .chat-avatar.intro{animation:bubbleIn .6s var(--ease) .2s both;}
+  @keyframes bubbleIn{from{opacity:0; transform:translateY(10px) scale(.94);} to{opacity:1; transform:none;}}
+  /* Follow-up bubble keeps a fixed height so nothing below it jumps between screens */
+  .chat-stack .chat-bubble:not(:first-child){min-height:67px; display:flex; align-items:center;}
+  .chat-bubble.ghost{visibility:hidden;}
 
-  /* ---- Tabs: white pill, active tab is the accent pill ---- */
-  .tabs{display:flex; gap:4px; background:var(--float); border-radius:var(--r-pill); padding:4px; box-shadow:var(--shadow-float);}
-  .tabs button{flex:1; border:none; background:transparent; padding:11px 4px; border-radius:var(--r-pill); font:600 14px 'Plus Jakarta Sans',sans-serif; color:var(--ink-soft); cursor:pointer; white-space:nowrap;}
-  .tabs button.active{background:var(--clay); color:#fff; box-shadow:0 10px 18px -10px var(--clay);}
+  /* ---- Tabs: a floating glass island. Docked at the bottom on phones, inline on desktop ---- */
+  .tabs{position:fixed; z-index:30; left:50%; bottom:calc(14px + env(safe-area-inset-bottom,0px)); transform:translateX(-50%); width:min(380px,calc(100% - 32px));
+    display:flex; gap:4px; padding:5px; border-radius:var(--r-pill); background:var(--glass); -webkit-backdrop-filter:blur(22px) saturate(1.5); backdrop-filter:blur(22px) saturate(1.5);
+    box-shadow:0 0 0 1px var(--ring), inset 0 1px 1px var(--hi), 0 26px 48px -22px rgba(90,40,60,.45);}
+  .tabs button{flex:1; border:none; background:transparent; padding:12px 4px; border-radius:var(--r-pill); font:600 14px 'Plus Jakarta Sans',sans-serif; color:var(--ink-soft); cursor:pointer; white-space:nowrap;}
+  .tabs button.active{background:var(--clay); color:#fff; box-shadow:inset 0 1px 0 rgba(255,255,255,.25), 0 12px 20px -12px var(--clay);}
 
-  /* ---- Content: first card floats over the hero edge ---- */
-  .content{padding:0 20px;}
-  .card{background:var(--card); border-radius:var(--r-card); padding:20px; margin-bottom:16px; box-shadow:var(--shadow-card);}
-  .section-h{margin:0 0 16px; font-weight:700; font-size:18px; line-height:1.3; letter-spacing:-0.01em; color:var(--ink);}
+  /* ---- Content ---- */
+  .content{padding:0 16px; scroll-margin-top:16px;}
+  .card{border-radius:var(--r-card); padding:22px; margin-bottom:16px;}
+  .section-h{margin:0 0 16px; font-weight:800; font-size:19px; line-height:1.25; letter-spacing:-0.025em; color:var(--ink);}
+  .eyebrow + .section-h{margin-top:12px;}
+  /* Entry choreography: armed only on first load and tab changes, so typing never replays it */
+  .reveal:not(.in){opacity:0;}
+  .reveal.in{animation:rise .9s var(--ease) backwards; animation-delay:calc(var(--i,0) * 80ms);}
+  @keyframes rise{from{opacity:0; transform:translateY(28px) scale(.985);} to{opacity:1; transform:none;}}
 
   /* ---- Mood: circular icon grid with labels underneath ---- */
-  .mood-card{padding:20px 12px 14px;}
-  .mood-card .section-h{padding:0 8px;}
+  .mood-card{padding:22px 12px 14px;}
+  .mood-card .section-h{padding:0 10px;}
   .mood-row{display:grid; grid-template-columns:repeat(5,1fr); gap:4px;}
-  .mood{background:none; border:none; cursor:pointer; padding:6px 2px 8px; border-radius:16px; text-align:center;}
-  .mood .emoji{display:flex; align-items:center; justify-content:center; width:min(56px,100%); aspect-ratio:1; font-size:28px; border-radius:50%; margin:0 auto 8px;}
-  .mood .lbl{display:block; font-size:12.5px; font-weight:500; color:var(--ink);}
-  .mood.sel .emoji{animation:pop .35s var(--ease) both; box-shadow:0 0 0 2px var(--card), 0 0 0 4px var(--clay);}
+  .mood{background:none; border:none; cursor:pointer; padding:8px 2px 10px; border-radius:20px; text-align:center;}
+  .mood .emoji{display:flex; align-items:center; justify-content:center; width:min(58px,100%); aspect-ratio:1; font-size:28px; border-radius:50%; margin:0 auto 9px; box-shadow:inset 0 1px 1px var(--hi);}
+  .mood .lbl{display:block; font-size:12.5px; font-weight:600; color:var(--ink-soft);}
+  .mood.sel .lbl{color:var(--ink);}
+  .mood.sel .emoji{animation:pop .5s var(--ease) both; box-shadow:0 0 0 3px var(--card), 0 0 0 5px var(--clay), 0 16px 24px -14px var(--clay);}
   @keyframes pop{0%{transform:scale(1);} 45%{transform:scale(1.2);} 100%{transform:scale(1.06);}}
 
-  /* ---- Writing card ---- */
-  .prompt-label{font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;}
-  .prompt-text{margin:0; font-weight:700; font-size:19px; line-height:1.4; letter-spacing:-0.01em;}
-  .swap{background:none; border:none; color:var(--rose); font:600 13px 'Plus Jakarta Sans',sans-serif; cursor:pointer; padding:0; margin-top:10px;}
-  .field-row{display:flex; gap:8px; margin-top:14px; align-items:flex-start;}
-  textarea{flex:1; width:100%; min-height:130px; border:1px solid var(--line); border-radius:var(--r-input); padding:14px; font:400 15px/1.6 'Plus Jakarta Sans',sans-serif; color:var(--ink); resize:vertical; background:var(--paper);}
-  textarea:focus{outline:2px solid var(--rose); outline-offset:1px;}
-  .mic-btn{flex-shrink:0; width:42px; height:42px; border-radius:50%; border:1px solid var(--line); background:var(--paper); color:var(--ink-soft); cursor:pointer; display:inline-flex; align-items:center; justify-content:center;}
-  .mic-btn.on{background:var(--clay); border-color:var(--clay); color:#fff;}
-  .save{position:relative; width:100%; height:54px; margin-top:16px; background:var(--clay); color:#fff; border:none; border-radius:var(--r-pill); font:700 16px 'Plus Jakarta Sans',sans-serif; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 12px 22px -12px var(--clay);}
-  .save .chev{position:absolute; right:18px; top:50%; margin-top:-9px; display:flex;}
+  /* ---- Mode switch (Check Up / Harian): a segmented control sitting in its own tray ---- */
+  .mode-switch{display:flex; gap:4px; padding:5px; margin-bottom:10px; border-radius:var(--r-pill); background:var(--shell); box-shadow:0 0 0 1px var(--ring);}
+  .mode-switch button{flex:1; display:flex; align-items:center; justify-content:center; gap:7px; height:44px; border-radius:var(--r-pill); border:none; background:transparent; color:var(--ink-soft); font:600 13.5px 'Plus Jakarta Sans',sans-serif; cursor:pointer;}
+  .mode-switch button.active{background:var(--card); color:var(--ink); box-shadow:0 0 0 1px var(--ring), inset 0 1px 1px var(--hi), 0 12px 22px -14px rgba(90,40,60,.45);}
+  .mode-switch button.active svg{color:var(--rose);}
+  .mode-hint{margin:0 6px 18px; font-size:12px; line-height:1.5; color:var(--ink-soft);}
 
-  /* ---- Reminder panel (opens from the bell) ---- */
-  /* ---- Reminder popover: anchored under the bell, floats over content, closes on outside click or Escape ---- */
-  .topbar{position:relative; z-index:10;}
-  .popover{position:absolute; top:calc(100% + 12px); right:0; width:min(320px,100%); background:var(--float); border-radius:var(--r-inner); padding:16px; font-size:13.5px; box-shadow:0 24px 48px -16px rgba(58,34,43,.38), 0 2px 8px rgba(58,34,43,.08); transform-origin:calc(100% - 65px) 0;}
-  .popover::before{content:""; position:absolute; top:-6px; right:59px; width:12px; height:12px; background:var(--float); border-radius:3px 0 0 0; transform:rotate(45deg);}
-  .popover.enter{animation:popIn .28s var(--ease) both;}
-  @keyframes popIn{from{opacity:0; transform:translateY(-6px) scale(.96);} to{opacity:1; transform:none;}}
+  /* ---- Writing card ---- */
+  .prompt-label{display:inline-flex; padding:5px 12px; margin-bottom:12px; border-radius:var(--r-pill); background:var(--rose-soft); color:var(--rose); font-size:10px; font-weight:700; line-height:1.4; letter-spacing:.2em; text-transform:uppercase;}
+  .prompt-text{margin:0; font-weight:800; font-size:22px; line-height:1.3; letter-spacing:-0.03em; text-wrap:pretty;}
+  .field-row{display:flex; gap:8px; margin-top:16px; align-items:flex-start;}
+  textarea{flex:1; width:100%; min-height:150px; border:none; border-radius:var(--r-input); padding:16px; font:400 15.5px/1.65 'Plus Jakarta Sans',sans-serif; color:var(--ink); resize:vertical; background:var(--well);
+    box-shadow:inset 0 0 0 1px var(--line), inset 0 3px 8px -5px rgba(58,34,43,.25); transition:box-shadow .5s var(--ease), background-color .5s var(--ease);}
+  textarea::placeholder{color:var(--ink-soft); opacity:.8;}
+  textarea:focus{outline:none; background:var(--card); box-shadow:inset 0 0 0 1.5px var(--rose), 0 0 0 5px var(--rose-soft);}
+  .mic-btn{flex-shrink:0; width:44px; height:44px; border-radius:50%; border:none; background:var(--well); box-shadow:inset 0 0 0 1px var(--line); color:var(--ink-soft); cursor:pointer; display:inline-flex; align-items:center; justify-content:center;}
+  .mic-btn.on{background:var(--clay); box-shadow:0 12px 20px -12px var(--clay); color:#fff;}
+  /* Primary CTA: full pill, with the arrow nested in its own circle flush to the right edge */
+  .save{width:100%; height:60px; margin-top:16px; padding:0 9px 0 26px; background:var(--clay); color:#fff; border:none; border-radius:var(--r-pill); font:700 16px 'Plus Jakarta Sans',sans-serif; letter-spacing:-0.01em; cursor:pointer; display:flex; align-items:center; justify-content:space-between;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.28), 0 20px 32px -18px var(--clay);}
+  .save .chev{width:42px; height:42px; border-radius:50%; background:rgba(255,255,255,.2); display:flex; align-items:center; justify-content:center;}
+
+  /* ---- Reminder popover: anchored under the bell, closes on outside click or Escape ---- */
+  .popover{position:absolute; top:calc(100% + 12px); right:0; width:min(320px,100%); background:var(--float); border-radius:var(--r-inner); padding:18px; font-size:13.5px; box-shadow:0 0 0 1px var(--ring), 0 32px 60px -24px rgba(58,34,43,.5); transform-origin:calc(100% - 65px) 0;}
+  .popover::before{content:""; position:absolute; top:-6px; right:60px; width:12px; height:12px; background:var(--float); border-radius:3px 0 0 0; transform:rotate(45deg); box-shadow:-1px -1px 0 var(--ring);}
+  .popover.enter{animation:popIn .45s var(--ease) both;}
+  @keyframes popIn{from{opacity:0; transform:translateY(-8px) scale(.95);} to{opacity:1; transform:none;}}
   .popover-row{display:flex; align-items:center; justify-content:space-between; gap:14px;}
   .popover-row + .popover-row{margin-top:14px; padding-top:14px; border-top:1px solid var(--line);}
   .popover-title{font-weight:700; font-size:14.5px;}
   .popover-hint{margin-top:3px; max-width:24ch; font-size:12px; line-height:1.45; color:var(--ink-soft); text-wrap:pretty;}
-  .popover input[type=time]{border:1px solid var(--line); border-radius:12px; padding:6px 10px; font:500 13px 'Plus Jakarta Sans',sans-serif; background:var(--paper); color:var(--ink);}
+  .popover input[type=time]{border:none; box-shadow:inset 0 0 0 1px var(--line); border-radius:12px; padding:7px 10px; font:500 13px 'Plus Jakarta Sans',sans-serif; background:var(--well); color:var(--ink);}
   .popover-note{margin-top:12px; font-size:12px; color:var(--ink-soft);}
-  .switch{position:relative; width:38px; height:22px; flex-shrink:0;}
+  .switch{position:relative; width:42px; height:25px; flex-shrink:0;}
   .switch input{opacity:0; width:0; height:0;}
-  .slider{position:absolute; inset:0; background:var(--line); border-radius:22px; cursor:pointer; transition:.2s;}
-  .slider:before{content:""; position:absolute; width:16px; height:16px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s;}
+  .slider{position:absolute; inset:0; background:var(--paper-dim); box-shadow:inset 0 0 0 1px var(--line); border-radius:25px; cursor:pointer; transition:background-color .4s var(--ease);}
+  .slider:before{content:""; position:absolute; width:19px; height:19px; left:3px; top:3px; background:#fff; border-radius:50%; box-shadow:0 2px 6px rgba(58,34,43,.25); transition:transform .4s var(--ease);}
   input:checked + .slider{background:var(--rose);}
-  input:checked + .slider:before{transform:translateX(16px);}
+  input:checked + .slider:before{transform:translateX(17px);}
 
-  /* ---- Dashboard ---- */
-  .stats{display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;}
-  .stat{flex:1; min-width:90px; background:var(--card); border-radius:var(--r-inner); padding:14px 10px; text-align:center; box-shadow:var(--shadow-card);}
-  .stat b{display:block; font-weight:700; font-size:19px;}
-  .stat span{font-size:11px; color:var(--ink-soft);}
-  /* Mode switch (Check Up / Harian): its own component — this is a top-level choice about how
-     you write today, not a data filter, so it should not look like the Dashboard's date-range pills. */
-  .mode-switch{display:flex; gap:8px; margin-bottom:8px;}
-  .mode-switch button{flex:1; display:flex; align-items:center; justify-content:center; gap:7px; height:46px; border-radius:var(--r-inner); border:1.5px solid var(--line); background:var(--card); color:var(--ink-soft); font:600 13.5px 'Plus Jakarta Sans',sans-serif; cursor:pointer;}
-  .mode-switch button.active{border-color:var(--clay); background:var(--clay); color:#fff; box-shadow:0 10px 20px -12px var(--clay);}
-  .mode-hint{margin:0 0 16px; font-size:12px; line-height:1.5; color:var(--ink-soft);}
+  /* ---- Stats: asymmetric bento ---- */
+  .bento{display:grid; grid-template-columns:1.15fr 1fr; gap:12px; margin-bottom:16px;}
+  .bento.three{grid-template-columns:repeat(3,1fr); gap:10px;}
+  .stat{--bezel:5px; border-radius:26px; padding:15px 16px; min-width:0; min-height:96px; display:flex; flex-direction:column; justify-content:flex-end; gap:3px;}
+  .stat b{display:block; font-weight:800; font-size:26px; line-height:1.05; letter-spacing:-0.035em; font-variant-numeric:tabular-nums; overflow-wrap:anywhere;}
+  .stat span{font-size:11.5px; line-height:1.35; color:var(--ink-soft);}
+  .stat.big{grid-row:span 2; padding:18px;}
+  .stat.big b{font-size:clamp(64px,19vw,88px); line-height:.9; color:var(--rose);}
+  .stat.big .eyebrow{align-self:flex-start; margin-bottom:auto; font-size:10px; line-height:1.4; color:var(--rose);}
+  .bento.three .stat{min-height:84px; padding:13px 13px;}
+  .bento.three .stat b{font-size:22px;}
 
   /* Ghost pill: small secondary action with an icon — "Ganti pertanyaan", "Batal mengubah" */
-  .btn-ghost-sm{display:inline-flex; align-items:center; gap:6px; margin-top:10px; padding:7px 14px; border-radius:var(--r-pill); border:1px solid var(--line); background:transparent; color:var(--ink); font:600 12.5px 'Plus Jakarta Sans',sans-serif; cursor:pointer;}
+  .btn-ghost-sm{display:inline-flex; align-items:center; gap:6px; margin-top:12px; padding:8px 15px; border-radius:var(--r-pill); border:none; box-shadow:inset 0 0 0 1px var(--line); background:transparent; color:var(--ink); font:600 12.5px 'Plus Jakarta Sans',sans-serif; cursor:pointer;}
 
-  /* Row action: small icon-only button riding on a note's own header — "Ubah", "Hapus" */
+  /* Row action: small icon-only button riding on a note's own header — "Ubah", "Favorit", "Hapus" */
   .row-head{display:flex; align-items:flex-start; justify-content:space-between; gap:10px;}
-  .icon-ghost{flex-shrink:0; width:28px; height:28px; border-radius:50%; border:none; background:transparent; color:var(--ink-soft); cursor:pointer; display:inline-flex; align-items:center; justify-content:center;}
+  .row-actions{display:flex; gap:2px; flex-shrink:0;}
+  .icon-ghost{flex-shrink:0; width:30px; height:30px; border-radius:50%; border:none; background:transparent; color:var(--ink-soft); cursor:pointer; display:inline-flex; align-items:center; justify-content:center;}
+  .icon-ghost.on{color:var(--gold);}
 
+  /* Chips: date range (Dashboard) and filters (Riwayat) share one pill */
   .range-toggle{display:flex; gap:6px; margin-bottom:16px;}
-  .range-toggle button{border:1px solid var(--line); background:var(--card); border-radius:var(--r-pill); padding:7px 16px; font:600 12.5px 'Plus Jakarta Sans',sans-serif; color:var(--ink-soft); cursor:pointer;}
-  .range-toggle button.active{background:var(--clay); color:#fff; border-color:var(--clay);}
-  .chart-summary{font-size:13.5px; color:var(--ink-soft); margin-top:14px; line-height:1.5;}
-  .chart-draw{animation:reveal .7s var(--ease) both;}
+  .range-toggle button, .chip{display:inline-flex; align-items:center; gap:6px; flex-shrink:0; border:none; background:var(--card); box-shadow:0 0 0 1px var(--ring); border-radius:var(--r-pill); padding:8px 15px; font:600 12.5px 'Plus Jakarta Sans',sans-serif; color:var(--ink-soft); cursor:pointer; white-space:nowrap;}
+  .range-toggle button.active, .chip.active{background:var(--ink); color:var(--paper); box-shadow:0 12px 20px -14px var(--ink);}
+  .chart-summary{font-size:13.5px; color:var(--ink-soft); margin-top:14px; line-height:1.55;}
+  .chart-draw{animation:reveal .9s var(--ease) both;}
   @keyframes reveal{from{clip-path:inset(0 100% 0 0);} to{clip-path:inset(0 0 0 0);}}
-  .insight-box{background:var(--paper-dim); border-radius:16px; padding:14px; margin-top:14px; font-size:13.5px; line-height:1.6;}
-  .insight-box .lbl{font-size:11px; color:var(--ink-soft); margin-bottom:6px;}
+  .insight-box{background:var(--well); box-shadow:inset 0 0 0 1px var(--line); border-radius:var(--r-inner); padding:16px; margin-top:16px; font-size:13.5px; line-height:1.65;}
+  .insight-box .lbl{font-size:10px; font-weight:700; letter-spacing:.2em; text-transform:uppercase; color:var(--rose); margin-bottom:8px;}
+
+  /* ---- Mood calendar ---- */
+  .cal-head{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:16px;}
+  .cal-head .section-h{margin:0; text-transform:capitalize;}
+  .cal-nav{display:flex; gap:6px;}
+  .cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:6px;}
+  .cal-dow{padding-bottom:4px; font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; text-align:center; color:var(--ink-soft);}
+  .cal-day{aspect-ratio:1; display:flex; align-items:center; justify-content:center; border:none; border-radius:14px; background:transparent; font:600 13px 'Plus Jakarta Sans',sans-serif; font-variant-numeric:tabular-nums; color:var(--ink-soft); opacity:.75;}
+  .cal-day.has{opacity:1; color:var(--ink); font-weight:700; cursor:pointer; transition:transform .4s var(--ease), box-shadow .4s var(--ease);}
+  .cal-day.today{opacity:1; box-shadow:inset 0 0 0 1.5px var(--rose);}
+  .cal-legend{display:flex; flex-wrap:wrap; gap:8px 14px; margin-top:16px; font-size:11.5px; color:var(--ink-soft);}
+  .cal-legend i{display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px;}
+
+  /* ---- On this day ---- */
+  .otd-item{display:flex; align-items:center; gap:12px; width:100%; margin-top:8px; padding:12px 12px 12px 16px; border:none; border-radius:var(--r-inner); background:var(--well); box-shadow:inset 0 0 0 1px var(--line); color:var(--ink); text-align:left; cursor:pointer; transition:transform .4s var(--ease), background-color .4s var(--ease);}
+  .otd-body{flex:1; min-width:0;}
+  .otd-when{display:flex; align-items:center; flex-wrap:wrap; gap:4px 7px; margin-bottom:3px; font-size:12px; color:var(--ink-soft);}
+  .otd-when b{font-weight:700; color:var(--ink);}
+  .otd-text{font-size:14px; line-height:1.5; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
+  .otd-go{flex-shrink:0; width:36px; height:36px; border-radius:50%; background:var(--card); box-shadow:0 0 0 1px var(--ring); color:var(--ink-soft); display:flex; align-items:center; justify-content:center; transition:transform .4s var(--ease), color .4s var(--ease);}
 
   /* ---- History ---- */
-  .actions{display:flex; gap:8px; margin-bottom:16px;}
-  .actions button{flex:1; border:1px solid var(--line); background:var(--card); border-radius:var(--r-pill); padding:11px; font:600 13px 'Plus Jakarta Sans',sans-serif; color:var(--ink); cursor:pointer;}
-  .entry{border-bottom:1px solid var(--line); padding:16px 2px;}
+  .search{display:flex; align-items:center; gap:10px; height:54px; padding:0 20px; margin-bottom:12px; border-radius:var(--r-pill); background:var(--card); color:var(--ink-soft); box-shadow:0 0 0 1px var(--ring), inset 0 1px 1px var(--hi), var(--shadow-float); transition:box-shadow .5s var(--ease);}
+  .search:focus-within{box-shadow:0 0 0 1.5px var(--rose), 0 0 0 6px var(--rose-soft);}
+  .search svg{flex-shrink:0;}
+  .search input{flex:1; min-width:0; border:none; background:transparent; font:500 15px 'Plus Jakarta Sans',sans-serif; color:var(--ink);}
+  .search input::placeholder{color:var(--ink-soft);}
+  .search input:focus, .search input:focus-visible{outline:none;}
+  .search input::-webkit-search-cancel-button{-webkit-appearance:none;}
+  .chips{display:flex; gap:6px; overflow-x:auto; margin:0 -16px 6px; padding:3px 16px 14px; scrollbar-width:none;}
+  .chips::-webkit-scrollbar{display:none;}
+  .actions{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:16px;}
+  .actions button{border:none; background:var(--card); box-shadow:0 0 0 1px var(--ring); border-radius:var(--r-pill); padding:12px; font:600 13px 'Plus Jakarta Sans',sans-serif; color:var(--ink); cursor:pointer;}
+  .entry{border-bottom:1px solid var(--line); padding:18px 2px;}
   .entry:last-child{border-bottom:none; padding-bottom:0;}
-  .entry-head{display:flex; align-items:center; gap:8px; margin-bottom:6px;}
+  .entry-head{display:flex; align-items:center; gap:8px; margin-bottom:8px;}
   .dot{width:9px; height:9px; border-radius:50%; flex-shrink:0;}
-  .entry-date{font-size:12.5px; color:var(--ink-soft);}
-  .entry-prompt{font-size:12.5px; color:var(--ink-soft); font-style:italic; margin-bottom:5px; flex:1; min-width:0;}
-  .entry-text{font-size:15px; line-height:1.5;}
+  .entry-date{font-size:12.5px; font-weight:600; color:var(--ink-soft);}
+  .entry-prompt{font-size:12.5px; color:var(--ink-soft); font-style:italic; margin-bottom:5px; padding-top:6px; flex:1; min-width:0;}
+  .entry-text{font-size:15px; line-height:1.6; white-space:pre-line; overflow-wrap:anywhere;}
+  .entry-text + .entry-prompt{margin-top:14px;}
+  .tag{display:inline; border:none; padding:1px 8px; border-radius:var(--r-pill); background:var(--rose-soft); color:var(--rose); font:600 .9em 'Plus Jakarta Sans',sans-serif; cursor:pointer;}
+  mark{background:rgba(255,196,64,.5); color:inherit; border-radius:4px; padding:0 2px;}
   .empty{text-align:center; padding:50px 10px; color:var(--ink-soft); line-height:1.6;}
   .empty svg{display:block; margin:0 auto;}
+  .card > .empty{padding:28px 10px;}
 
   /* ---- Toast ---- */
-  .toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(10px) scale(.96); background:var(--ink); color:var(--paper); padding:10px 18px; border-radius:var(--r-pill); font-size:13.5px; opacity:0; transition:opacity .3s var(--ease), transform .3s var(--ease); pointer-events:none; z-index:20; max-width:90%; text-align:center;}
+  .toast{position:fixed; bottom:calc(92px + env(safe-area-inset-bottom,0px)); left:50%; transform:translateX(-50%) translateY(12px) scale(.96); background:var(--ink); color:var(--paper); padding:11px 20px; border-radius:var(--r-pill); font-size:13.5px; font-weight:500; opacity:0; transition:opacity .5s var(--ease), transform .5s var(--ease); pointer-events:none; z-index:40; max-width:90%; text-align:center; box-shadow:0 24px 40px -20px rgba(42,25,32,.6);}
   .toast.show{opacity:1; transform:translateX(-50%) translateY(0) scale(1);}
 
   /* ---- Type polish ---- */
-  .hero-h{text-wrap:balance;}
-  .hero-sub, .chat-text, .prompt-text, .chart-summary, .insight-box{text-wrap:pretty;}
-  .stat b, .streak-pill b{font-variant-numeric:tabular-nums;}
+  .hero-sub, .chat-text, .chart-summary, .insight-box{text-wrap:pretty;}
+  .streak-pill b{font-variant-numeric:tabular-nums;}
 
   /* ---- Transitions on every interactive element ---- */
-  .tabs button, .mood, .mood .emoji, .mood .lbl, .save, .save .chev, .icon-btn, .mic-btn, .actions button, .range-toggle button, .mode-switch button, .btn-ghost-sm, .icon-ghost, .stat, .dot, .entry-date, .topbar-brand img{
-    transition:transform .25s var(--ease), color .25s var(--ease), background-color .25s var(--ease), border-color .25s var(--ease), box-shadow .25s var(--ease);}
-  .swap{background:linear-gradient(currentColor,currentColor) 0 100%/0 1px no-repeat; transition:background-size .3s var(--ease);}
+  .tabs button, .mood, .mood .emoji, .mood .lbl, .save, .save .chev, .icon-btn, .mic-btn, .actions button, .range-toggle button, .chip, .tag, .mode-switch button, .btn-ghost-sm, .icon-ghost, .stat, .dot, .entry-date, .topbar-brand img{
+    transition:transform .45s var(--ease), color .45s var(--ease), background-color .45s var(--ease), box-shadow .45s var(--ease), opacity .45s var(--ease);}
   @keyframes flicker{0%,100%{transform:scale(1) rotate(0);} 30%{transform:scale(1.22) rotate(-7deg);} 60%{transform:scale(1.1) rotate(6deg);}}
 
   /* ---- Hover: pointer devices only, so touch screens never get a stuck hover ---- */
   @media (hover:hover) and (pointer:fine){
-    .tabs button:not(.active):hover{color:var(--ink); background:var(--paper-dim);}
-    .mood:not(.sel):hover{background:var(--paper);}
+    .tabs button:not(.active):hover{color:var(--ink); background:var(--shell);}
+    .mood:not(.sel):hover{background:var(--well);}
     .mood:not(.sel):hover .emoji{transform:translateY(-3px) scale(1.06);}
-    .save:hover{transform:translateY(-2px); box-shadow:0 16px 28px -14px var(--clay);}
-    .save:hover .chev{transform:translateX(3px);}
-    .icon-btn:not(.on):hover{color:var(--clay); transform:translateY(-1px);}
-    .actions button:hover, .mic-btn:not(.on):hover{border-color:var(--clay); color:var(--clay); transform:translateY(-1px);}
-    .range-toggle button:not(.active):hover{border-color:var(--clay); color:var(--clay);}
-    .mode-switch button:not(.active):hover{border-color:var(--clay); color:var(--clay);}
-    .btn-ghost-sm:hover{border-color:var(--clay); color:var(--clay);}
-    .icon-ghost:hover{background:var(--paper-dim); color:var(--clay);}
-    .stat:hover{transform:translateY(-2px);}
+    .save:hover{transform:translateY(-2px); box-shadow:inset 0 1px 0 rgba(255,255,255,.28), 0 26px 36px -18px var(--clay);}
+    .save:hover .chev{transform:translate(3px,-1px) scale(1.05);}
+    .icon-btn:not(.on):not(:disabled):hover{color:var(--clay); transform:translateY(-1px);}
+    .actions button:hover, .mic-btn:not(.on):hover{color:var(--clay); transform:translateY(-1px); box-shadow:0 0 0 1px var(--clay);}
+    .range-toggle button:not(.active):hover, .chip:not(.active):hover{color:var(--clay); box-shadow:0 0 0 1px var(--clay);}
+    .mode-switch button:not(.active):hover{color:var(--ink);}
+    .btn-ghost-sm:hover{color:var(--clay); box-shadow:inset 0 0 0 1px var(--clay);}
+    .icon-ghost:hover{background:var(--well); color:var(--clay);}
+    .icon-ghost.on:hover{color:var(--gold);}
+    .tag:hover{background:var(--rose); color:#fff;}
+    .stat:hover{transform:translateY(-3px);}
+    .cal-day.has:hover{transform:scale(1.1); box-shadow:0 0 0 1.5px var(--ink);}
+    .otd-item:hover{background:var(--paper-dim);}
+    .otd-item:hover .otd-go{transform:translate(3px,-1px) scale(1.05); color:var(--rose);}
     .entry:hover .dot{transform:scale(1.5);}
     .entry:hover .entry-date{color:var(--ink);}
     .topbar-brand img:hover{transform:rotate(-8deg) scale(1.1);}
-    .streak-pill:hover .fire{animation:flicker .6s ease-in-out;}
-    .swap:hover{background-size:100% 1px;}
+    .streak-pill:hover .fire{animation:flicker .6s var(--ease);}
     /* pressed state must beat hover, otherwise a click keeps the lifted pose */
     .save:active{transform:translateY(0) scale(.98);}
-    .icon-btn:active, .mic-btn:active, .actions button:active, .mode-switch button:active, .btn-ghost-sm:active, .icon-ghost:active{transform:scale(.96);}
+    .icon-btn:active, .mic-btn:active, .actions button:active, .mode-switch button:active, .btn-ghost-sm:active, .icon-ghost:active, .chip:active, .cal-day.has:active{transform:scale(.96);}
   }
-  .tabs button:active, .mood:active{transform:scale(.96);}
+  .tabs button:active, .mood:active, .otd-item:active{transform:scale(.97);}
+  .save:active{transform:scale(.98);}
 
   /* ---- Keyboard focus (accessibility, not optional) ---- */
   button:focus-visible, input:focus-visible{outline:2px solid var(--rose); outline-offset:2px;}
   .tabs button.active:focus-visible, .save:focus-visible, .icon-btn.on:focus-visible{outline-color:var(--ink);}
   .switch input:focus-visible + .slider{outline:2px solid var(--rose); outline-offset:2px;}
 
-  /* ---- Skeleton loading state for the weekly insight ---- */
+  /* ---- Skeleton loading state ---- */
   .skeleton span{display:block; position:relative; overflow:hidden; height:10px; border-radius:6px; margin-bottom:8px; background:var(--line);}
   .skeleton span.short{width:60%; margin-bottom:0;}
   .skeleton span::after{content:""; position:absolute; inset:0; transform:translateX(-100%); background:linear-gradient(90deg, transparent, var(--hover), transparent); animation:sweep 1.4s var(--ease) infinite;}
   @keyframes sweep{to{transform:translateX(100%);}}
 
-  /* ---- Follow-up chat bubble keeps a fixed height so the tabs never jump between screens ---- */
-  .chat-stack .chat-bubble:not(:first-child){min-height:67px; display:flex; align-items:center;}
-  .chat-bubble.ghost{visibility:hidden;}
-
   /* ---- Notes written today ---- */
   .note{padding:14px 0; border-bottom:1px solid var(--line);}
   .note:first-of-type{padding-top:0;}
   .note:last-child{border-bottom:none; padding-bottom:0;}
-  .note-q{margin-bottom:4px; font-size:12.5px; font-style:italic; color:var(--ink-soft);}
-  .note-t{font-size:14.5px; line-height:1.5; white-space:pre-line; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;}
-  .entry-text{white-space:pre-line;}
-  .entry-text + .entry-prompt{margin-top:14px;}
-  /* One day can hold several notes now — a lighter dashed rule marks the boundary between them,
+  .note-q{margin-bottom:4px; padding-top:6px; font-size:12.5px; font-style:italic; color:var(--ink-soft);}
+  .note-t{font-size:14.5px; line-height:1.55; white-space:pre-line; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;}
+  /* One day can hold several notes — a lighter dashed rule marks the boundary between them,
      kept visually distinct from the solid rule .entry already uses to mark day boundaries. */
   .note-block.divider{margin-top:14px; padding-top:14px; border-top:1px dashed var(--line);}
   .confirm-row{display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-top:10px; font-size:12.5px; color:var(--ink-soft);}
-  .btn-ghost-sm.danger{border-color:var(--rose); color:var(--rose);}
+  .confirm-row .btn-ghost-sm{margin-top:0;}
+  .confirm-row.block{margin:0 4px 16px;}
+  .btn-ghost-sm.danger{box-shadow:inset 0 0 0 1px var(--rose); color:var(--rose);}
   @media (hover:hover) and (pointer:fine){ .btn-ghost-sm.danger:hover{background:var(--rose); color:#fff;} }
 
-  /* ---- AI summary card (History) ---- */
+  /* ---- AI summary card ---- */
   .summary .range-toggle{margin-bottom:14px;}
   .summary .skeleton{margin-bottom:14px;}
-  .summary-hint{margin:0; font-size:13.5px; line-height:1.55; color:var(--ink-soft);}
-  .summary-text{margin:0 0 6px; font-size:14.5px; line-height:1.65; white-space:pre-line;}
-  .summary-meta{margin:0 0 14px; font-size:12px; color:var(--ink-soft);}
+  .summary-hint{margin:0 0 16px; font-size:13.5px; line-height:1.55; color:var(--ink-soft);}
+  .summary-text{margin:0 0 6px; font-size:14.5px; line-height:1.7; white-space:pre-line;}
+  .summary-meta{margin:0 0 16px; font-size:12px; color:var(--ink-soft);}
   .summary-err{margin:0 0 12px; font-size:13px; color:var(--rose);}
-  .summary-privacy{margin:10px 0 0; font-size:11.5px; line-height:1.5; color:var(--ink-soft);}
-  .progress{height:8px; margin-top:14px; border-radius:var(--r-pill); background:var(--paper-dim); overflow:hidden;}
+  .summary-privacy{margin:12px 0 0; font-size:11.5px; line-height:1.5; color:var(--ink-soft);}
+  .progress{height:8px; border-radius:var(--r-pill); background:var(--well); box-shadow:inset 0 0 0 1px var(--line); overflow:hidden;}
   .progress span{display:block; height:100%; border-radius:var(--r-pill); background:var(--clay);}
-  .btn-soft{width:100%; height:48px; border-radius:var(--r-pill); border:1.5px solid var(--clay); background:transparent; color:var(--clay); font:700 14.5px 'Plus Jakarta Sans',sans-serif; cursor:pointer; transition:transform .25s var(--ease), background-color .25s var(--ease), color .25s var(--ease);}
+  .btn-soft{width:100%; height:52px; border-radius:var(--r-pill); border:none; background:var(--rose-soft); color:var(--clay); font:700 14.5px 'Plus Jakarta Sans',sans-serif; cursor:pointer; transition:transform .45s var(--ease), background-color .45s var(--ease), color .45s var(--ease);}
   .btn-soft:disabled{opacity:.55; cursor:default;}
   .btn-soft:active:not(:disabled){transform:scale(.98);}
   @media (hover:hover) and (pointer:fine){ .btn-soft:not(:disabled):hover{background:var(--clay); color:#fff;} }
+
+  /* ---- Text inputs: sign-in fields and the circle forms ---- */
+  .field{display:block; margin-top:14px;}
+  .field span{display:block; margin:0 0 6px 6px; font-size:12px; font-weight:600; color:var(--ink-soft);}
+  .field input, .inline-form input{width:100%; min-width:0; border:none; background:var(--well); box-shadow:inset 0 0 0 1px var(--line); font:500 15px 'Plus Jakarta Sans',sans-serif; color:var(--ink); transition:box-shadow .5s var(--ease), background-color .5s var(--ease);}
+  .field input{height:54px; padding:0 18px; border-radius:18px;}
+  .field input::placeholder, .inline-form input::placeholder{color:var(--ink-soft); opacity:.8;}
+  .field input:focus, .inline-form input:focus{outline:none; background:var(--card); box-shadow:inset 0 0 0 1.5px var(--rose), 0 0 0 5px var(--rose-soft);}
+  .inline-form{display:flex; gap:8px; margin-top:12px;}
+  .inline-form input{flex:1; height:46px; padding:0 18px; border-radius:var(--r-pill); font-size:14px;}
+  .inline-form .chip{height:46px; padding:0 18px;}
+  .auth .save{margin-top:22px;}
+  .auth .summary-err{margin:14px 0 0;}
+
+  /* ---- Circles: streak together ---- */
+  .circle-strip:not(:empty){margin-bottom:16px;}
+  .circle-strip .otd-item{background:var(--card); box-shadow:0 0 0 1px var(--ring), inset 0 1px 1px var(--hi), var(--shadow-float);}
+  .circle-strip .otd-item:first-child{margin-top:0;}
+  .circle-fire{flex-shrink:0; display:inline-flex; align-items:baseline; gap:5px; padding:8px 13px; border-radius:var(--r-pill); background:var(--well); box-shadow:inset 0 0 0 1px var(--line); color:var(--ink-soft); font-variant-numeric:tabular-nums;}
+  .circle-fire b{font-weight:800; font-size:16px; letter-spacing:-0.02em;}
+  .circle-fire .fire{font-size:14px; opacity:.45;}
+  .circle-fire .unit{font-size:11.5px; font-weight:600;}
+  .circle-fire.lit{background:var(--rose-soft); box-shadow:none; color:var(--rose);}
+  .circle-fire.lit .fire{opacity:1;}
+  .circle-fire.big{padding:10px 16px;}
+  .circle-fire.big b{font-size:26px; line-height:1; letter-spacing:-0.035em;}
+  .circle{margin-top:14px; padding:16px; border-radius:var(--r-inner); background:var(--well); box-shadow:inset 0 0 0 1px var(--line);}
+  .circle-head{display:flex; align-items:flex-start; justify-content:space-between; gap:12px;}
+  .circle-title{min-width:0;}
+  .circle-name{font-weight:800; font-size:16.5px; letter-spacing:-0.02em; overflow-wrap:anywhere;}
+  .circle-meta{margin-top:3px; font-size:12.5px; line-height:1.45; color:var(--ink-soft); text-wrap:pretty;}
+  .members{display:flex; flex-wrap:wrap; gap:6px; margin-top:14px;}
+  .member{display:inline-flex; align-items:center; gap:7px; max-width:100%; padding:4px 12px 4px 4px; border-radius:var(--r-pill); background:var(--card); box-shadow:0 0 0 1px var(--ring); font-size:12.5px; font-weight:600; color:var(--ink-soft);}
+  .member i{flex-shrink:0; width:24px; height:24px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; background:var(--paper-dim); font-style:normal; font-size:11px; font-weight:800;}
+  .member.done{color:var(--ink);}
+  .member.done i{background:var(--rose); color:#fff;}
+  .circle-foot{display:flex; flex-wrap:wrap; gap:0 8px; margin-top:2px;}
+  .circle-foot b{letter-spacing:.12em;}
+  .circle .confirm-row{margin-top:14px;}
+  #circleCard .summary-err{margin:12px 0 0;}
+
+  /* ---- Desktop: editorial split. Type and navigation hold the left, the journal scrolls on the right ---- */
+  @media (min-width:1024px){
+    .app{max-width:1240px; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,540px); gap:clamp(48px,7vw,120px); align-items:start; padding:40px 48px 120px;}
+    .hero{padding:0;}
+    .hero-copy{margin:clamp(40px,9vh,104px) 0 0;}
+    .hero-h{font-size:clamp(52px,5.4vw,80px); margin:22px 0 20px;}
+    .hero-sub{font-size:17px; margin-bottom:36px;}
+    .chat{margin-bottom:32px; max-width:460px;}
+    .content{padding:0; scroll-margin-top:40px;}
+    .tabs{position:static; transform:none; width:min(400px,100%); background:var(--card); -webkit-backdrop-filter:none; backdrop-filter:none; box-shadow:0 0 0 1px var(--ring), inset 0 1px 1px var(--hi), var(--shadow-float);}
+    .chips{margin:0 0 6px; padding:3px 2px 14px; flex-wrap:wrap; overflow:visible;}
+    .card{padding:28px;}
+    .mood-card{padding:28px 18px 18px;}
+    .toast{bottom:32px;}
+  }
+  @media (min-width:1024px) and (min-height:780px){
+    .hero{position:sticky; top:40px;}
+  }
 
   /* ---- Print report ---- */
   #printArea{display:none;}
@@ -264,7 +397,7 @@
   /* ---- One global switch for people who ask for less motion ---- */
   @media (prefers-reduced-motion: reduce){
     html{scroll-behavior:auto;}
-    *, *::before, *::after{animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important;}
+    *, *::before, *::after{animation-duration:.01ms !important; animation-delay:0s !important; animation-iteration-count:1 !important; transition-duration:.01ms !important;}
   }
 </style>
 </head>
@@ -332,17 +465,23 @@ const MOODS = [
   {k:'senang', e:'😄', l:'Senang', c:'#7FA88F'},
 ];
 const ICONS = {
-  mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"/><path d="M19 11a7 7 0 0 1-14 0"/><line x1="12" y1="19" x2="12" y2="22"/></svg>',
-  bell: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M6 8a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 21a2 2 0 0 0 4 0"/></svg>',
-  sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" width="15" height="15"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+  mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"/><path d="M19 11a7 7 0 0 1-14 0"/><line x1="12" y1="19" x2="12" y2="22"/></svg>',
+  bell: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M6 8a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 21a2 2 0 0 0 4 0"/></svg>',
+  sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" width="15" height="15"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
   moon: '<svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>',
 };
-ICONS.chev = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M9 6l6 6-6 6"/></svg>';
-ICONS.pencil = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
-ICONS.trash = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
-ICONS.refresh = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M21 12a9 9 0 1 1-3-6.7"/><polyline points="21 3 21 9 15 9"/></svg>';
-ICONS.checkCircle = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 5-5"/></svg>';
-ICONS.calendar = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
+ICONS.chev = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>';
+ICONS.chevLeft = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M15 6l-6 6 6 6"/></svg>';
+ICONS.chevRight = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M9 6l6 6-6 6"/></svg>';
+ICONS.search = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>';
+ICONS.star = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.8l-5.2 2.8 1-5.8-4.3-4.1 5.9-.8z"/></svg>';
+ICONS.starFill = ICONS.star.replace('fill="none"','fill="currentColor"');
+ICONS.check = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+ICONS.pencil = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+ICONS.trash = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
+ICONS.refresh = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M21 12a9 9 0 1 1-3-6.7"/><polyline points="21 3 21 9 15 9"/></svg>';
+ICONS.checkCircle = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 5-5"/></svg>';
+ICONS.calendar = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
 const EMPTY_ILLUSTRATION = `<svg viewBox="0 0 100 100" width="60" height="60" fill="none">
   <path d="M20 66V45a30 30 0 0 1 60 0v21" stroke="var(--line)" stroke-width="9" stroke-linecap="round"/>
   <path d="M32 66V48a18 18 0 0 1 36 0v18" stroke="var(--rose)" stroke-width="9" stroke-linecap="round" opacity=".55"/>
@@ -381,14 +520,37 @@ let notifiedToday = false;
 let dashboardInsight = null;
 let insightWeekCached = null;
 let insightLoading = false;
+let animateContent = true;   // play the entry choreography on the next render (first load, tab change)
+let calMonth = null;         // 'YYYY-MM' shown by the Dashboard calendar; null = current month
+let histQuery = '', histMood = null, histTag = null, histFav = false, histDate = null;
+let importPending = null, importBusy = false;
+let me = null;               // the signed-in account; null shows the sign-in screen
+let authMode = 'login', authBusy = false, authCfg = {signup:true, firstAccount:false};
+let circles = [], leaveConfirmId = null;
 // ---------- Storage backend: real Express + SQLite API ----------
+// Every server call goes through here: a 401 in the middle of a session (expired, or signed out
+// in another tab) drops back to the sign-in screen instead of failing one request at a time.
+function api(url, opts){
+  return window.fetch(url, opts).then(res=>{ if(res.status===401 && me) signedOut(); return res; });
+}
 async function initStorage(){
   try{
-    const [entriesRes, settingsRes] = await Promise.all([
-      fetch('/api/entries').then(r=>r.json()),
-      fetch('/api/settings').then(r=>r.json())
+    const meRes = await api('/api/me');
+    if(meRes.status===401){
+      me = null;
+      authCfg = await api('/api/auth/config').then(r=>r.json());
+      if(authCfg.firstAccount) authMode = 'register';
+      entriesReady = true; render();
+      return;
+    }
+    me = await meRes.json();
+    const [entriesRes, settingsRes, circlesRes] = await Promise.all([
+      api('/api/entries').then(r=>r.json()),
+      api('/api/settings').then(r=>r.json()),
+      api('/api/circles').then(r=>r.json())
     ]);
     entries = entriesRes;
+    circles = Array.isArray(circlesRes) ? circlesRes : [];
     reminder = {enabled: !!settingsRes.reminderEnabled, time: settingsRes.reminderTime || '20:00'};
     insightWeekCached = settingsRes.insightWeek || null;
     dashboardInsight = settingsRes.insightWeek===weekKey() ? (settingsRes.insightText||null) : null;
@@ -403,18 +565,18 @@ async function initStorage(){
   render();
 }
 function persistProfile(patch){
-  fetch('/api/settings', {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(patch)})
+  api('/api/settings', {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(patch)})
     .catch(()=>showToast('Gagal menyimpan pengaturan ke server'));
 }
 
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 function setDayMode(m){ if(dayMode===m) return; dayMode=m; persistProfile({dayMode:m}); render(); }
 async function persistEntry(entry){
-  const res = await fetch(`/api/entries/${entry.date}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(entry)});
+  const res = await api(`/api/entries/${entry.date}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(entry)});
   if(!res.ok) throw new Error('bad status');
 }
 async function deleteEntryDoc(date){
-  const res = await fetch(`/api/entries/${date}`, {method:'DELETE'});
+  const res = await api(`/api/entries/${date}`, {method:'DELETE'});
   if(!res.ok) throw new Error('bad status');
 }
 function askDeleteNote(date, idx){ confirmDeleteKey = date+'::'+idx; render(); }
@@ -439,6 +601,7 @@ async function deleteNote(date, idx){
   }catch(e){ showToast('Gagal menghapus, coba lagi'); return; }
   if(editingIdx!==null && date===todayStr()) cancelEdit();
   showToast('Catatan dihapus'); render();
+  if(circles.length) loadCircles();
 }
 function getGreeting(){
   const h=new Date().getHours();
@@ -566,7 +729,7 @@ function toggleReminder(on){
 }
 function setReminderTime(t){ reminder.time=t; persistProfile({reminderEnabled:reminder.enabled, reminderTime:t}); }
 function checkReminderTick(){
-  if(!reminder.enabled || hasEntryToday()) return;
+  if(!me || !reminder.enabled || hasEntryToday()) return;
   if(!('Notification' in window) || Notification.permission!=='granted') return;
   const now=new Date(); const hh=String(now.getHours()).padStart(2,'0'); const mm=String(now.getMinutes()).padStart(2,'0');
   if(`${hh}:${mm}`===reminder.time && !notifiedToday){ notifiedToday=true; try{ new Notification('Azzifa',{body:'Waktunya check-in sebentar. Tidak perlu panjang.'}); }catch(e){} }
@@ -599,6 +762,10 @@ function renderSettingsPanel(fresh){
         <label class="switch"><input type="checkbox" ${reminder.enabled?'checked':''} onchange="toggleReminder(this.checked)" aria-label="Aktifkan pengingat harian"><span class="slider"></span></label>
       </div>
       <div class="popover-row"><span>Jam pengingat</span><input type="time" value="${reminder.time}" onchange="setReminderTime(this.value)"></div>
+      <div class="popover-row">
+        <div><div class="popover-title">${esc(me.name)}</div><div class="popover-hint">@${esc(me.username)}</div></div>
+        <button class="btn-ghost-sm" style="margin-top:0" onclick="logout()">Keluar</button>
+      </div>
       ${!notifSupported ? '<div class="popover-note">Notifikasi tidak didukung di browser ini, jadi pengingat hanya berupa pesan di sini.</div>' : ''}
     </div>`;
 }
@@ -624,7 +791,7 @@ function renderToday(){
       <p class="prompt-text">${esc(promptShown)}</p>
       ${editing ? `<button class="btn-ghost-sm" onclick="cancelEdit()">Batal mengubah</button>` : (dayMode==='checkup' ? `<button class="btn-ghost-sm" onclick="syncDraft(); swapPrompt()">${ICONS.refresh}Ganti pertanyaan</button>` : '')}
       <div class="field-row">
-        <textarea id="entryText" placeholder="Tulis apa saja, tidak perlu rapi...">${esc(val)}</textarea>
+        <textarea id="entryText" placeholder="Tulis apa saja, tidak perlu rapi. Pakai #tag untuk menandai topik.">${esc(val)}</textarea>
         <button class="mic-btn" data-target="entryText" onclick="toggleMic('entryText')" title="Bicara" aria-label="Dikte suara">${ICONS.mic}</button>
       </div>
       <button class="save" onclick="saveEntry()"><span>${editing?'Perbarui catatan':'Simpan'}</span><span class="chev" aria-hidden="true">${ICONS.chev}</span></button>
@@ -663,9 +830,20 @@ function renderToday(){
         <div class="note-t">${esc(n.text)}</div>
       </div>`).join('')}
     </section>` : ''}
+    <div class="circle-strip" id="circleStrip">${renderCircleStrip()}</div>
+    ${renderOnThisDay()}
   `;
 }
-function setTab(t){ tab=t; if(t==='trend') ensureInsight(); render(); }
+function setTab(t){
+  syncDraft(); tab=t;
+  if(t!=='history') histDate=null;
+  if(t==='trend') ensureInsight();
+  animateContent=true; render();
+  if(t!=='history' && circles.length) loadCircles();
+  // The tab bar is docked on phones, so a switch can happen mid-scroll: bring the new tab's top into view.
+  const c=document.querySelector('.content');
+  if(c && c.getBoundingClientRect().top<0) c.scrollIntoView({block:'start'});
+}
 function selectMood(k){ selectedMood=k; render(); document.getElementById('entryText')?.focus(); }
 function swapPrompt(){ promptIdx=pickPrompt(); render(); }
 function editNote(i){
@@ -697,6 +875,7 @@ async function saveEntry(){
   if(wasEditing){ draftText=stashedDraft; stashedDraft=null; }
   else{ draftText=null; promptIdx=pickPrompt(notes); }   // next Check Up question appears on its own
   showToast(SAVE_MESSAGES[Math.floor(Math.random()*SAVE_MESSAGES.length)]); render();
+  if(!wasEditing && circles.length) loadCircles();
   if(!wasEditing && dayMode==='daily' && notes.length===DAILY_STEPS.length){
     generateDaySummary();   // fourth step just landed — wrap the day up automatically
   }
@@ -709,7 +888,7 @@ async function generateDaySummary(){
   if(notes.length===0){ daySummaryErr='Belum ada catatan hari ini.'; render(); return; }
   daySummaryLoading=true; daySummaryErr=null; render();
   try{
-    const res = await fetch(`/api/entries/${todayStr()}/day-summary`, {method:'POST'});
+    const res = await api(`/api/entries/${todayStr()}/day-summary`, {method:'POST'});
     const data = await res.json();
     if(!res.ok){ daySummaryErr = data.error || 'Gagal membuat rangkuman. Coba lagi sebentar lagi.'; }
     else{
@@ -757,12 +936,202 @@ async function ensureInsight(){
   if(insightLoading) return;
   insightLoading=true; render();
   try{
-    const res = await fetch('/api/insight', {method:'POST'});
+    const res = await api('/api/insight', {method:'POST'});
     const data = await res.json();
     if(!res.ok){ dashboardInsight = null; showToast(data.error || 'Gagal membuat pengamatan'); }
     else{ dashboardInsight = data.text; insightWeekCached = data.week; }
   }catch(e){ dashboardInsight = null; }
   insightLoading=false; render();
+}
+// ---------- Circles: a streak kept together (Dashboard card + strip on Hari ini) ----------
+async function loadCircles(){
+  try{
+    const res=await api('/api/circles');
+    if(!res.ok) return;
+    circles=await res.json();
+  }catch(e){ return; }
+  refreshCirclesUI();
+}
+// Runs when a request settles, possibly while the user is typing — so it repaints only the
+// circle elements and never rebuilds the textarea under the cursor.
+function refreshCirclesUI(){
+  const strip=document.getElementById('circleStrip'); if(strip) strip.innerHTML=renderCircleStrip();
+  const card=document.getElementById('circleCard'); if(card) card.innerHTML=renderCircleCard();
+}
+function circleStatus(c){
+  const n=c.members.length, done=c.members.filter(m=>m.wroteToday).length;
+  const mine=c.members.find(m=>m.me);
+  if(n<2) return 'Ajak minimal satu orang supaya streak bisa dimulai.';
+  if(c.todayComplete) return 'Semua sudah nulis hari ini. Streak aman.';
+  if(mine && !mine.wroteToday) return done===n-1 ? 'Tinggal kamu yang belum nulis hari ini.' : `${done} dari ${n} sudah nulis hari ini. Kamu belum.`;
+  return `${done} dari ${n} sudah nulis hari ini. Menunggu ${c.members.filter(m=>!m.wroteToday).map(m=>m.name).join(', ')}.`;
+}
+function renderCircleStrip(){
+  return circles.map(c=>`<button class="otd-item" onclick="setTab('trend')">
+    <span class="circle-fire${c.todayComplete?' lit':''}"><span class="fire">🔥</span><b>${c.streak}</b></span>
+    <span class="otd-body"><span class="otd-when"><b>${esc(c.name)}</b></span><span class="otd-text">${esc(circleStatus(c))}</span></span>
+    <span class="otd-go" aria-hidden="true">${ICONS.chev}</span>
+  </button>`).join('');
+}
+function renderCircleCard(){
+  return `
+    <span class="eyebrow">Streak bareng</span>
+    <h2 class="section-h">Nulis bareng, jaga streak bareng</h2>
+    <p class="summary-hint">Streak grup naik satu setiap hari semua anggotanya menulis. Anggota lain cuma melihat namamu dan sudah atau belum nulis hari ini. Isi catatan dan mood tetap pribadi.</p>
+    ${circles.map(c=>`<div class="circle">
+      <div class="circle-head">
+        <div class="circle-title"><div class="circle-name">${esc(c.name)}</div><div class="circle-meta">${esc(circleStatus(c))}</div></div>
+        <div class="circle-fire big${c.todayComplete?' lit':''}" title="Streak grup"><span class="fire">🔥</span><b>${c.streak}</b><span class="unit">hari</span></div>
+      </div>
+      <div class="members">${c.members.map(m=>`<span class="member${m.wroteToday?' done':''}" title="${m.wroteToday?'Sudah nulis hari ini':'Belum nulis hari ini'}"><i>${m.wroteToday ? ICONS.check : esc([...(m.name||'?')][0].toUpperCase())}</i>${esc(m.name)}${m.me?' (kamu)':''}</span>`).join('')}</div>
+      ${leaveConfirmId===c.id ? `<div class="confirm-row">
+        <span>Keluar dari grup ini?</span>
+        <button class="btn-ghost-sm danger" onclick="leaveCircle(${c.id})">Ya, keluar</button>
+        <button class="btn-ghost-sm" onclick="askLeave(null)">Batal</button>
+      </div>` : `<div class="circle-foot">
+        <button class="btn-ghost-sm" onclick="copyCode('${c.code}')" title="Salin kode undangan">Kode undangan <b>${c.code}</b></button>
+        <button class="btn-ghost-sm" onclick="askLeave(${c.id})">Keluar grup</button>
+      </div>`}
+    </div>`).join('')}
+    <form class="inline-form" onsubmit="createCircle(event)"><input id="circleName" placeholder="Nama grup baru" maxlength="40" required aria-label="Nama grup baru"><button class="chip active" type="submit">Buat grup</button></form>
+    <form class="inline-form" onsubmit="joinCircle(event)"><input id="circleCode" placeholder="Punya kode undangan?" maxlength="8" required autocapitalize="characters" autocomplete="off" aria-label="Kode undangan"><button class="chip" type="submit">Gabung</button></form>
+    <p class="summary-err" id="circleErr" role="alert" hidden></p>`;
+}
+// Every circle endpoint answers with the caller's full, fresh list of circles.
+async function circleAction(url, opts){
+  try{
+    const res=await api(url, opts);
+    const data=await res.json();
+    if(!res.ok){
+      const errEl=document.getElementById('circleErr');
+      if(errEl){ errEl.textContent=data.error || 'Gagal, coba lagi'; errEl.hidden=false; }
+      return false;
+    }
+    circles=data; leaveConfirmId=null; refreshCirclesUI();
+    return true;
+  }catch(e){ showToast('Tidak bisa menghubungi server.'); return false; }
+}
+const JSON_POST = body => ({method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+async function createCircle(ev){
+  ev.preventDefault();
+  const name=document.getElementById('circleName').value.trim();
+  if(name && await circleAction('/api/circles', JSON_POST({name}))) showToast('Grup dibuat. Bagikan kode undangannya.');
+}
+async function joinCircle(ev){
+  ev.preventDefault();
+  const code=document.getElementById('circleCode').value.trim();
+  if(code && await circleAction('/api/circles/join', JSON_POST({code}))) showToast('Kamu sudah bergabung.');
+}
+function askLeave(id){ leaveConfirmId=id; refreshCirclesUI(); }
+function leaveCircle(id){ circleAction(`/api/circles/${id}/membership`, {method:'DELETE'}); }
+function copyCode(code){
+  const fallback=()=>showToast(`Kode undangan: ${code}`);
+  if(navigator.clipboard) navigator.clipboard.writeText(code).then(()=>showToast(`Kode ${code} disalin`), fallback);
+  else fallback();
+}
+
+// ---------- Accounts ----------
+function setAuthMode(m){ authMode=m; render(); }
+// On failure the message is written straight into the form, so what was typed is not lost.
+async function submitAuth(ev){
+  ev.preventDefault();
+  if(authBusy) return;
+  const errEl=document.getElementById('authErr');
+  const fail=msg=>{ errEl.textContent=msg; errEl.hidden=false; authBusy=false; };
+  const body={
+    username:document.getElementById('authUser').value.trim(),
+    name:(document.getElementById('authName')?.value || '').trim(),
+    password:document.getElementById('authPass').value,
+  };
+  authBusy=true; errEl.hidden=true;
+  try{
+    const res=await api(`/api/auth/${authMode==='register'?'register':'login'}`, JSON_POST(body));
+    const data=await res.json();
+    if(!res.ok) return fail(data.error || 'Gagal masuk, coba lagi');
+  }catch(e){ return fail('Tidak bisa menghubungi server.'); }
+  authBusy=false; tab='today'; animateContent=true; nudgeShown=false;
+  initStorage();
+}
+// Clears everything that belonged to the previous account before showing the sign-in screen.
+function signedOut(){
+  me=null; entries=[]; circles=[]; showSettings=false; draftText=null; selectedMood=null; editingIdx=null;
+  histQuery=''; histMood=null; histTag=null; histFav=false; histDate=null; importPending=null;
+  dashboardInsight=null; insightWeekCached=null; summaryText=null; summaryAt=null;
+  authMode='login'; animateContent=true;
+  render();
+  api('/api/auth/config').then(r=>r.json()).then(c=>{ authCfg=c; if(!me) render(); }).catch(()=>{});
+}
+async function logout(){
+  try{ await api('/api/auth/logout', {method:'POST'}); }catch(e){}
+  signedOut();
+}
+function renderAuth(){
+  const reg = authMode==='register';
+  const hint = !reg ? 'Jurnalmu hanya bisa dibuka dengan akunmu.'
+    : authCfg.firstAccount ? 'Ini akun pertama di server ini. Catatan yang sudah ada sebelumnya akan menjadi milik akun ini.'
+    : 'Setiap akun punya jurnal sendiri. Orang lain tidak bisa membaca catatanmu.';
+  const switcher = reg
+    ? (authCfg.firstAccount ? '' : `<button class="btn-ghost-sm" onclick="setAuthMode('login')">Sudah punya akun? Masuk</button>`)
+    : (authCfg.signup ? `<button class="btn-ghost-sm" onclick="setAuthMode('register')">Belum punya akun? Daftar</button>` : '');
+  return `<section class="card auth">
+    <span class="eyebrow">${reg?'Akun baru':'Selamat datang'}</span>
+    <h2 class="section-h">${reg?'Buat akun Azzifa':'Masuk ke jurnalmu'}</h2>
+    <p class="summary-hint">${hint}</p>
+    <form onsubmit="submitAuth(event)">
+      <label class="field"><span>Nama pengguna</span><input id="authUser" autocomplete="username" autocapitalize="none" spellcheck="false" required minlength="3" maxlength="24"></label>
+      ${reg ? `<label class="field"><span>Nama panggilan</span><input id="authName" autocomplete="nickname" maxlength="30" placeholder="Yang dilihat teman di grup"></label>` : ''}
+      <label class="field"><span>Kata sandi</span><input id="authPass" type="password" autocomplete="${reg?'new-password':'current-password'}" required minlength="8"></label>
+      <p class="summary-err" id="authErr" role="alert" hidden></p>
+      <button class="save" type="submit"><span>${reg?'Buat akun':'Masuk'}</span><span class="chev" aria-hidden="true">${ICONS.chev}</span></button>
+    </form>
+    ${switcher}
+  </section>`;
+}
+
+// ---------- Mood calendar (Dashboard) ----------
+// Month grid tinted by each day's mood. Tapping a day opens it in Riwayat.
+function calShift(n){
+  const [y,m]=(calMonth||todayStr().slice(0,7)).split('-').map(Number);
+  calMonth=new Date(Date.UTC(y,m-1+n,1)).toISOString().slice(0,7);
+  render();
+}
+function renderCalendar(){
+  const today=todayStr();
+  const ym=calMonth||today.slice(0,7);
+  const [y,m]=ym.split('-').map(Number);
+  const first=new Date(Date.UTC(y,m-1,1));
+  const lead=(first.getUTCDay()+6)%7; // Monday = 0
+  const daysInMonth=new Date(Date.UTC(y,m,0)).getUTCDate();
+  const byDate={}; entries.forEach(e=>byDate[e.date]=e);
+  const title=first.toLocaleDateString('id-ID',{month:'long',year:'numeric',timeZone:'UTC'});
+  let cells='';
+  for(let i=0;i<lead;i++) cells+='<span></span>';
+  for(let d=1;d<=daysInMonth;d++){
+    const date=`${ym}-${String(d).padStart(2,'0')}`;
+    const e=byDate[date];
+    const todayCls=date===today?' today':'';
+    if(e){
+      const mi=moodInfo(e.mood), n=notesOf(e).length;
+      cells+=`<button class="cal-day has${todayCls}" style="background:${mi.c}47" onclick="openDay('${date}')" aria-label="${fmtDate(date)}, ${mi.l}, ${n} catatan">${d}</button>`;
+    } else {
+      cells+=`<span class="cal-day${todayCls}">${d}</span>`;
+    }
+  }
+  return `
+    <div class="card">
+      <div class="cal-head">
+        <h2 class="section-h">${title}</h2>
+        <div class="cal-nav">
+          <button class="icon-btn" onclick="calShift(-1)" title="Bulan sebelumnya" aria-label="Bulan sebelumnya">${ICONS.chevLeft}</button>
+          <button class="icon-btn" onclick="calShift(1)" title="Bulan berikutnya" aria-label="Bulan berikutnya" ${ym>=today.slice(0,7)?'disabled':''}>${ICONS.chevRight}</button>
+        </div>
+      </div>
+      <div class="cal-grid">
+        ${['Sen','Sel','Rab','Kam','Jum','Sab','Min'].map(d=>`<div class="cal-dow">${d}</div>`).join('')}
+        ${cells}
+      </div>
+      <div class="cal-legend">${MOODS.map(mo=>`<span><i style="background:${mo.c}"></i>${mo.l}</span>`).join('')}</div>
+    </div>`;
 }
 function renderTrend(){
   const days=seriesForRange(chartRange);
@@ -777,11 +1146,12 @@ function renderTrend(){
   }
   const worst=hardestDayInfo();
   return `
-    <div class="stats">
-      <div class="stat"><b>${longestStreakEver()}</b><span>Streak terpanjang</span></div>
+    <div class="bento">
+      <div class="stat big"><span class="eyebrow">Streak terpanjang</span><b>${longestStreakEver()}</b><span>hari berturut-turut</span></div>
       <div class="stat"><b>${entriesThisMonth()}</b><span>Catatan bulan ini</span></div>
       <div class="stat"><b>${worst?worst.day:'—'}</b><span>Hari paling berat</span></div>
     </div>
+    <div class="card" id="circleCard">${renderCircleCard()}</div>
     <div class="range-toggle">
       <button class="${chartRange===7?'active':''}" onclick="setRange(7)">7 hari</button>
       <button class="${chartRange===30?'active':''}" onclick="setRange(30)">30 hari</button>
@@ -792,12 +1162,12 @@ function renderTrend(){
       <div class="chart-summary">${summary}</div>
       <div class="insight-box">
         <div class="lbl">Pengamatan AI minggu ini</div>
-        ${insightLoading ? '<div class="skeleton" role="status" aria-label="Menganalisis pola"><span></span><span></span><span class="short"></span></div>' : (dashboardInsight || (totalNotes()<3 ? 'Isi minimal 3 catatan agar pengamatan bisa dibuat.' : 'Belum tersedia.'))}
+        ${insightLoading ? '<div class="skeleton" role="status" aria-label="Menganalisis pola"><span></span><span></span><span class="short"></span></div>' : (dashboardInsight ? esc(dashboardInsight) : (totalNotes()<3 ? 'Isi minimal 3 catatan agar pengamatan bisa dibuat.' : 'Belum tersedia.'))}
       </div>
     </div>
+    ${renderCalendar()}
   `;
 }
-
 // ---------- History + export ----------
 function exportTxt(){
   if(entries.length===0){ showToast('Belum ada catatan untuk diekspor'); return; }
@@ -823,7 +1193,7 @@ async function generateSummary(){
   if(summaryLoading) return;
   summaryLoading=true; summaryErr=null; render();
   try{
-    const res = await fetch('/api/summary', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({range:summaryRange})});
+    const res = await api('/api/summary', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({range:summaryRange})});
     const data = await res.json();
     if(!res.ok){ summaryErr = data.error || 'Gagal membuat rangkuman. Coba lagi sebentar lagi.'; }
     else{ summaryText = data.text; summaryAt = data.at; }
@@ -856,50 +1226,223 @@ function renderSummaryCard(){
     <p class="summary-privacy">Catatan pada rentang ini dikirim ke Claude untuk dirangkum.</p>
   </div>`;
 }
+// ---------- Search, #tags, favourites, day filter (Riwayat) ----------
+// Tags are not stored separately: any #word inside a note's text is a tag.
+const TAG_RE = /(#[\p{L}\p{N}_]{2,30})/gu;
+function tagsOf(text){ return (String(text||'').match(TAG_RE)||[]).map(t=>t.slice(1).toLowerCase()); }
+function allTags(){
+  const counts={};
+  entries.forEach(e=>notesOf(e).forEach(n=>new Set(tagsOf(n.text)).forEach(t=>counts[t]=(counts[t]||0)+1)));
+  return Object.entries(counts).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).slice(0,10);
+}
+function totalWords(){ return entries.reduce((n,e)=>n+notesOf(e).reduce((m,x)=>m+String(x.text||'').trim().split(/\s+/).filter(Boolean).length,0),0); }
+const escAttr = s => esc(s).replace(/"/g,'&quot;');
+function highlight(raw){
+  const q=histQuery.trim();
+  if(!q) return esc(raw);
+  const re=new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
+  return String(raw==null?'':raw).split(re).map((p,i)=>i%2?`<mark>${esc(p)}</mark>`:esc(p)).join('');
+}
+// Note text with search hits marked and #tags turned into filter buttons.
+function richText(raw){
+  return String(raw==null?'':raw).split(TAG_RE).map((p,i)=>i%2
+    ? `<button class="tag" onclick="setHistTag('${p.slice(1).toLowerCase()}')">${highlight(p)}</button>`
+    : highlight(p)).join('');
+}
+function histActive(){ return !!(histQuery.trim()||histMood||histTag||histFav||histDate); }
+function histFiltered(){
+  const q=histQuery.trim().toLowerCase();
+  return [...entries].sort((a,b)=>b.date.localeCompare(a.date))
+    .filter(e=>(!histDate||e.date===histDate) && (!histMood||e.mood===histMood))
+    .map(e=>({e, notes:notesOf(e).map((n,i)=>({n,i})).filter(({n})=>   // i stays the note's real index, for delete/favourite
+      (!histFav||n.fav) && (!histTag||tagsOf(n.text).includes(histTag)) &&
+      (!q || String(n.text||'').toLowerCase().includes(q) || String(n.prompt||'').toLowerCase().includes(q)))}))
+    .filter(x=>x.notes.length);
+}
+function resetHist(){ histQuery=''; histMood=null; histTag=null; histFav=false; histDate=null; render(); }
+function setHistMood(k){ histMood = histMood===k ? null : k; render(); }
+function setHistTag(t){ histTag = histTag===t ? null : t; render(); }
+function toggleHistFav(){ histFav=!histFav; render(); }
+function clearHistDate(){ histDate=null; render(); }
+// Typing only repaints the list, so the search box keeps focus and caret.
+function onSearch(v){ histQuery=v; const el=document.getElementById('histList'); if(el) el.innerHTML=renderHistoryList(); }
+// Calendar and "on this day" both land here: Riwayat narrowed to a single date.
+function openDay(date){ histQuery=''; histMood=null; histTag=null; histFav=false; histDate=date; setTab('history'); }
+async function toggleFav(date, idx){
+  const existing=entries.find(e=>e.date===date);
+  if(!existing) return;
+  const notes=notesOf(existing).map((n,i)=>i===idx ? {...n, fav:!n.fav} : {...n});
+  const entry={...existing, notes};
+  try{ await persistEntry(entry); }
+  catch(e){ showToast('Gagal menyimpan, coba lagi'); return; }
+  entries=[...entries.filter(e=>e.date!==date), entry];
+  render();
+}
+
+// ---------- Backup and restore (.json) ----------
+function exportJson(){
+  if(entries.length===0){ showToast('Belum ada catatan untuk dicadangkan'); return; }
+  window.location.href = '/api/export.json';
+}
+function pickImport(){ document.getElementById('importFile')?.click(); }
+async function readImport(input){
+  const file=input.files && input.files[0];
+  if(!file) return;
+  try{
+    const data=JSON.parse(await file.text());
+    const list=Array.isArray(data) ? data : (data && data.entries);
+    if(!Array.isArray(list) || list.length===0) throw new Error('empty');
+    importPending=list;
+  }catch(e){ importPending=null; showToast('File cadangan tidak dikenali'); }
+  render();
+}
+function cancelImport(){ importPending=null; render(); }
+async function confirmImport(){
+  if(!importPending || importBusy) return;
+  importBusy=true; render();
+  try{
+    const res=await api('/api/import', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({entries:importPending})});
+    const data=await res.json();
+    if(!res.ok){ showToast(data.error || 'Gagal memulihkan cadangan'); }
+    else{
+      entries=await api('/api/entries').then(r=>r.json());
+      showToast(`${data.imported} hari dipulihkan dari cadangan`);
+    }
+  }catch(e){ showToast('Tidak bisa menghubungi server.'); }
+  importPending=null; importBusy=false; render();
+}
+// Same in-page two-step confirm as deleting a note: restoring overwrites days that already exist.
+function renderBackupConfirm(){
+  return `<input type="file" id="importFile" accept="application/json,.json" hidden onchange="readImport(this)">
+    ${importPending ? `<div class="confirm-row block" role="alert">
+      <span>Pulihkan ${importPending.length} hari dari cadangan? Tanggal yang sama akan ditimpa.</span>
+      <button class="btn-ghost-sm danger" onclick="confirmImport()" ${importBusy?'disabled':''}>${importBusy?'Memulihkan...':'Ya, pulihkan'}</button>
+      <button class="btn-ghost-sm" onclick="cancelImport()" ${importBusy?'disabled':''}>Batal</button>
+    </div>` : ''}`;
+}
+
+function renderHistoryList(){
+  const rows=histFiltered();
+  if(rows.length===0) return `<div class="empty">${EMPTY_ILLUSTRATION}<div style="margin-top:10px;">Tidak ada catatan yang cocok.</div><button class="btn-ghost-sm" onclick="resetHist()">Hapus semua saringan</button></div>`;
+  const count=rows.reduce((n,r)=>n+r.notes.length,0);
+  return `
+    <h2 class="section-h">${histActive() ? `${count} catatan ditemukan` : 'Catatan yang sudah kamu tulis'}</h2>
+    ${rows.map(({e,notes})=>{ const total=notesOf(e).length; return `<div class="entry">
+      <div class="entry-head"><span class="dot" style="background:${moodInfo(e.mood).c}"></span><span class="entry-date">${fmtDate(e.date)} · ${moodInfo(e.mood).l}${total>1?` · ${total} catatan`:''}</span></div>
+      ${notes.map(({n,i},pos)=>{
+        const pendingDelete = confirmDeleteKey===(e.date+'::'+i);
+        return `<div class="note-block${pos>0?' divider':''}">
+          <div class="row-head">
+            <div class="entry-prompt">${highlight(n.prompt)}</div>
+            ${pendingDelete ? '' : `<div class="row-actions">
+              <button class="icon-ghost${n.fav?' on':''}" onclick="toggleFav('${e.date}', ${i})" title="${n.fav?'Hapus dari favorit':'Tandai favorit'}" aria-label="Favorit" aria-pressed="${!!n.fav}">${n.fav?ICONS.starFill:ICONS.star}</button>
+              <button class="icon-ghost" onclick="askDeleteNote('${e.date}', ${i})" title="Hapus catatan" aria-label="Hapus catatan">${ICONS.trash}</button>
+            </div>`}
+          </div>
+          <div class="entry-text">${richText(n.text)}</div>
+          ${pendingDelete ? `<div class="confirm-row">
+            <span>Hapus catatan ini?</span>
+            <button class="btn-ghost-sm danger" onclick="deleteNote('${e.date}', ${i})">Ya, hapus</button>
+            <button class="btn-ghost-sm" onclick="cancelDeleteNote()">Batal</button>
+          </div>` : ''}
+        </div>`;
+      }).join('')}
+    </div>`; }).join('')}`;
+}
 function renderHistory(){
-  if(entries.length===0) return `<div class="card empty">${EMPTY_ILLUSTRATION}<div style="margin-top:10px;">Belum ada catatan.<br>Mulai dari tab "Hari ini".</div></div>`;
-  const sorted=[...entries].sort((a,b)=>b.date.localeCompare(a.date));
-  const idxs=sorted.map(e=>MOOD_ORDER.indexOf(e.mood)).filter(i=>i>=0);
+  if(entries.length===0) return `
+    <div class="card empty">${EMPTY_ILLUSTRATION}<div style="margin-top:10px;">Belum ada catatan.<br>Mulai dari tab "Hari ini".</div></div>
+    <div class="actions"><button onclick="pickImport()" style="grid-column:1/-1">Pulihkan dari cadangan .json</button></div>
+    ${renderBackupConfirm()}`;
+  const idxs=entries.map(e=>MOOD_ORDER.indexOf(e.mood)).filter(i=>i>=0);
   const avgLabel=MOOD_ORDER[Math.round(idxs.reduce((a,b)=>a+b,0)/idxs.length)]||'biasa';
   return `
-    <div class="stats">
+    <div class="bento three">
       <div class="stat"><b>${totalNotes()}</b><span>Total catatan</span></div>
+      <div class="stat"><b>${totalWords().toLocaleString('id-ID')}</b><span>Kata ditulis</span></div>
       <div class="stat"><b>${moodInfo(avgLabel).e}</b><span>Rata-rata mood</span></div>
     </div>
-    ${renderSummaryCard()}
-    <div class="actions"><button onclick="exportTxt()">Ekspor .txt</button><button onclick="printReport()">Cetak / PDF</button></div>
-    <div class="card">
-      <h2 class="section-h">Catatan yang sudah kamu tulis</h2>
-      ${sorted.map(e=>{ const ns=notesOf(e); return `<div class="entry">
-        <div class="entry-head"><span class="dot" style="background:${moodInfo(e.mood).c}"></span><span class="entry-date">${fmtDate(e.date)} · ${moodInfo(e.mood).l}${ns.length>1?` · ${ns.length} catatan`:''}</span></div>
-        ${ns.map((n,i)=>{
-          const pendingDelete = confirmDeleteKey===(e.date+'::'+i);
-          return `<div class="note-block${i>0?' divider':''}">
-            <div class="row-head">
-              <div class="entry-prompt">${esc(n.prompt)}</div>
-              ${pendingDelete ? '' : `<button class="icon-ghost" onclick="askDeleteNote('${e.date}', ${i})" title="Hapus catatan" aria-label="Hapus catatan">${ICONS.trash}</button>`}
-            </div>
-            <div class="entry-text">${esc(n.text)}</div>
-            ${pendingDelete ? `<div class="confirm-row">
-              <span>Hapus catatan ini?</span>
-              <button class="btn-ghost-sm danger" onclick="deleteNote('${e.date}', ${i})">Ya, hapus</button>
-              <button class="btn-ghost-sm" onclick="cancelDeleteNote()">Batal</button>
-            </div>` : ''}
-          </div>`;
-        }).join('')}
-      </div>`; }).join('')}
+    <label class="search">${ICONS.search}<input id="histSearch" type="search" placeholder="Cari di catatanmu" value="${escAttr(histQuery)}" oninput="onSearch(this.value)" aria-label="Cari catatan" autocomplete="off"></label>
+    <div class="chips" role="group" aria-label="Saring catatan">
+      ${histDate ? `<button class="chip active" onclick="clearHistDate()" title="Hapus saringan tanggal">${fmtDate(histDate)} ✕</button>` : ''}
+      <button class="chip${histFav?' active':''}" aria-pressed="${histFav}" onclick="toggleHistFav()">${ICONS.star}Favorit</button>
+      ${MOODS.map(m=>`<button class="chip${histMood===m.k?' active':''}" aria-pressed="${histMood===m.k}" onclick="setHistMood('${m.k}')">${m.e} ${m.l}</button>`).join('')}
+      ${allTags().map(([t])=>`<button class="chip${histTag===t?' active':''}" aria-pressed="${histTag===t}" onclick="setHistTag('${t}')">#${esc(t)}</button>`).join('')}
     </div>
+    <div class="card" id="histList">${renderHistoryList()}</div>
+    ${renderSummaryCard()}
+    <div class="actions">
+      <button onclick="exportTxt()">Ekspor .txt</button>
+      <button onclick="printReport()">Cetak / PDF</button>
+      <button onclick="exportJson()">Cadangkan .json</button>
+      <button onclick="pickImport()">Pulihkan cadangan</button>
+    </div>
+    ${renderBackupConfirm()}
   `;
 }
 
+// ---------- On this day (Hari ini) ----------
+// The same date a week, a month, 3 and 6 months ago, and in every earlier year.
+function lookbacks(){
+  const today=todayStr(); const [y,m,d]=today.split('-').map(Number);
+  const byDate={}; entries.forEach(e=>byDate[e.date]=e);
+  const out=[], seen=new Set();
+  const add=(label,date)=>{ if(date<today && byDate[date] && !seen.has(date)){ seen.add(date); out.push({label, entry:byDate[date]}); } };
+  add('Seminggu lalu', new Date(Date.UTC(y,m-1,d-7)).toISOString().slice(0,10));
+  [[1,'Sebulan lalu'],[3,'3 bulan lalu'],[6,'6 bulan lalu']].forEach(([n,label])=>{
+    const dt=new Date(Date.UTC(y,m-1-n,d));
+    if(dt.getUTCDate()===d) add(label, dt.toISOString().slice(0,10));   // skip when that month has no such day
+  });
+  entries.filter(e=>e.date.slice(5)===today.slice(5)).sort((a,b)=>b.date.localeCompare(a.date))
+    .forEach(e=>add(`${y-Number(e.date.slice(0,4))} tahun lalu`, e.date));
+  return out;
+}
+function renderOnThisDay(){
+  const items=lookbacks();
+  if(!items.length) return '';
+  return `<section class="card">
+    <span class="eyebrow">Kilas balik</span>
+    <h2 class="section-h">Hari ini di masa lalu</h2>
+    ${items.map(({label,entry})=>{ const mi=moodInfo(entry.mood); return `<button class="otd-item" onclick="openDay('${entry.date}')">
+      <span class="otd-body">
+        <span class="otd-when"><b>${label}</b><span class="dot" style="background:${mi.c}"></span>${fmtDate(entry.date)} · ${mi.l}</span>
+        <span class="otd-text">${esc(notesOf(entry)[0].text)}</span>
+      </span>
+      <span class="otd-go" aria-hidden="true">${ICONS.chev}</span>
+    </button>`; }).join('')}
+  </section>`;
+}
+
+// Entry choreography: each block of the tab fades up as it scrolls into view. Armed only when
+// animateContent is set (first load, tab change) — ordinary re-renders must not replay it.
+let revealObs=null;
+function armReveal(){
+  if(!('IntersectionObserver' in window)) return;
+  const els=document.querySelectorAll('.content > *');
+  els.forEach(el=>el.classList.add('reveal'));
+  revealObs=new IntersectionObserver(list=>{
+    let i=0;
+    list.forEach(en=>{
+      if(!en.isIntersecting) return;
+      en.target.style.setProperty('--i', i++);
+      en.target.classList.add('in');
+      revealObs.unobserve(en.target);
+    });
+  }, {rootMargin:'0px 0px -6% 0px'});
+  els.forEach(el=>revealObs.observe(el));
+}
 function render(){
+  const authed = !!me;
   const checkins=rollingCheckins(7);
   const intro = introPlayed ? '' : ' intro'; introPlayed = true;
   const pfresh = popoverFresh; popoverFresh = false;
+  const animate = animateContent && entriesReady; if(animate) animateContent = false;
+  if(revealObs){ revealObs.disconnect(); revealObs=null; }
   const nToday = todayNotes().length;
   let followCls = ' ghost', followText = '…';           // reserved slot until data is ready
   if(entriesReady){
-    followText = nToday===0 ? 'Kamu belum check-in hari ini. Mulai dari perasaanmu dulu, ya.' : `Hari ini sudah ada ${nToday} catatan. Mau nambah lagi?`;
+    followText = !authed ? 'Masuk dulu, ya. Jurnalmu cuma bisa dibuka olehmu.'
+      : nToday===0 ? 'Kamu belum check-in hari ini. Mulai dari perasaanmu dulu, ya.' : `Hari ini sudah ada ${nToday} catatan. Mau nambah lagi?`;
     followCls = nudgeShown ? '' : ' late'; nudgeShown = true;
   }
   const dateLabel = new Date().toLocaleDateString('id-ID',{weekday:'short',day:'numeric',month:'short'});
@@ -911,16 +1454,19 @@ function render(){
           <span class="date">${dateLabel}</span>
         </div>
         <div class="topbar-actions">
-          <div class="streak-pill" title="${checkins} dari 7 hari terakhir"><span class="fire">🔥</span> <b>${checkins}</b>/7 hari</div>
-          <button class="icon-btn bell-btn${showSettings?' on':''}" onclick="openSettings()" title="Pengingat" aria-label="Pengingat harian" aria-expanded="${showSettings}">${ICONS.bell}</button>
+          ${authed ? `<div class="streak-pill" title="${checkins} dari 7 hari terakhir"><span class="fire">🔥</span> <b>${checkins}</b>/7 hari</div>
+          <button class="icon-btn bell-btn${showSettings?' on':''}" onclick="openSettings()" title="Pengingat dan akun" aria-label="Pengingat dan akun" aria-expanded="${showSettings}">${ICONS.bell}</button>` : ''}
           <button class="icon-btn" onclick="toggleTheme()" title="Ganti tema" aria-label="Ganti tema">${getTheme()==='dark'?ICONS.sun:ICONS.moon}</button>
         </div>
-        ${showSettings ? renderSettingsPanel(pfresh) : ''}
+        ${authed && showSettings ? renderSettingsPanel(pfresh) : ''}
       </div>
-      <h1 class="hero-h">Teman Refleksi Harian di <span class="brand-name">Azzifa</span></h1>
-      <p class="hero-sub">A Zone of Zen, Introspection, Feelings &amp; Affection.</p>
+      <div class="hero-copy">
+        <span class="eyebrow">Jurnal &amp; mood harian</span>
+        <h1 class="hero-h">Teman Refleksi Harian di <span class="brand-name">Azzifa</span></h1>
+        <p class="hero-sub">A Zone of Zen, Introspection, Feelings &amp; Affection.</p>
+      </div>
       <div class="chat">
-        <img class="chat-avatar${intro}" src="${LOGO_URI}" alt="" width="36" height="36">
+        <img class="chat-avatar${intro}" src="${LOGO_URI}" alt="" width="38" height="38">
         <div class="chat-stack">
           <div class="chat-bubble${intro}">
             <div class="chat-name">Azzifa</div>
@@ -929,17 +1475,18 @@ function render(){
           <div class="chat-bubble${followCls}"${followCls===' late' ? ` style="animation-delay:${intro?'.85s':'.15s'}"` : ''}${followCls===' ghost' ? ' aria-hidden="true"' : ''}><div class="chat-text">${followText}</div></div>
         </div>
       </div>
-      <nav class="tabs" aria-label="Menu utama">
+      ${authed ? `<nav class="tabs" aria-label="Menu utama">
         <button class="${tab==='today'?'active':''}" onclick="setTab('today')">Hari ini</button>
         <button class="${tab==='trend'?'active':''}" onclick="setTab('trend')">Dashboard</button>
         <button class="${tab==='history'?'active':''}" onclick="setTab('history')">Riwayat</button>
-      </nav>
+      </nav>` : ''}
     </header>
     <main class="content">
-      ${tab==='today' ? renderToday() : tab==='trend' ? renderTrend() : renderHistory()}
+      ${!authed ? renderAuth() : tab==='today' ? renderToday() : tab==='trend' ? renderTrend() : renderHistory()}
     </main>
   `;
   renderMicButtons();
+  if(animate) armReveal();
 }
 initStorage();
 </script>

@@ -1,5 +1,6 @@
 // Database layer: a real SQLite file on disk (./data/azzifa.sqlite), not localStorage.
-// Single-user, local-first — no accounts, no network dependency for core journaling.
+// Several people can share one server: every journal row belongs to a user, and nothing but
+// "did they write today" is ever shared between them (see circles, below).
 const path = require('path');
 const fs = require('fs');
 const Database = require('better-sqlite3');
@@ -11,27 +12,74 @@ const db = new Database(path.join(dataDir, 'azzifa.sqlite'));
 db.pragma('journal_mode = WAL');
 
 db.exec(`
-  CREATE TABLE IF NOT EXISTS entries (
-    date TEXT PRIMARY KEY,
-    mood TEXT NOT NULL,
-    prompt TEXT NOT NULL,
-    text TEXT NOT NULL,
-    notes TEXT,
-    day_summary TEXT,
-    updated_at INTEGER NOT NULL
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    pass_hash TEXT NOT NULL,
+    pass_salt TEXT NOT NULL,
+    created_at INTEGER NOT NULL
   );
-  CREATE TABLE IF NOT EXISTS settings (
-    key TEXT PRIMARY KEY,
-    value TEXT
+  CREATE TABLE IF NOT EXISTS sessions (
+    token_hash TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL
+  );
+  -- A circle is a group of people keeping a streak together.
+  CREATE TABLE IF NOT EXISTS circles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    code TEXT NOT NULL UNIQUE,
+    created_at INTEGER NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS circle_members (
+    circle_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    joined_at INTEGER NOT NULL,
+    PRIMARY KEY (circle_id, user_id)
   );
 `);
-// Older databases created before these columns existed still work — migrate them in if missing.
-const cols = db.prepare("PRAGMA table_info(entries)").all().map(c => c.name);
-if (!cols.includes('notes')) {
-  db.exec('ALTER TABLE entries ADD COLUMN notes TEXT');
-}
-if (!cols.includes('day_summary')) {
-  db.exec('ALTER TABLE entries ADD COLUMN day_summary TEXT');
-}
+
+// entries and settings are keyed per user. Databases from the single-user version have no
+// user_id column: rebuild those tables with their rows parked on user_id 0, which the first
+// account to register then inherits (see /api/auth/register).
+const TABLES = {
+  entries: {
+    columns: ['date', 'mood', 'prompt', 'text', 'notes', 'day_summary', 'updated_at'],
+    create: `CREATE TABLE entries (
+      user_id INTEGER NOT NULL DEFAULT 0,
+      date TEXT NOT NULL,
+      mood TEXT NOT NULL,
+      prompt TEXT NOT NULL,
+      text TEXT NOT NULL,
+      notes TEXT,
+      day_summary TEXT,
+      updated_at INTEGER NOT NULL,
+      PRIMARY KEY (user_id, date)
+    )`,
+  },
+  settings: {
+    columns: ['key', 'value'],
+    create: `CREATE TABLE settings (
+      user_id INTEGER NOT NULL DEFAULT 0,
+      key TEXT NOT NULL,
+      value TEXT,
+      PRIMARY KEY (user_id, key)
+    )`,
+  },
+};
+Object.entries(TABLES).forEach(([table, def]) => {
+  const existing = db.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name);
+  if (existing.length === 0) { db.exec(def.create); return; }
+  if (existing.includes('user_id')) return;
+  // Older single-user tables may also predate notes/day_summary — copy only what they have.
+  const shared = def.columns.filter((c) => existing.includes(c)).join(', ');
+  db.transaction(() => {
+    db.exec(`ALTER TABLE ${table} RENAME TO ${table}_single_user`);
+    db.exec(def.create);
+    db.exec(`INSERT INTO ${table} (user_id, ${shared}) SELECT 0, ${shared} FROM ${table}_single_user`);
+    db.exec(`DROP TABLE ${table}_single_user`);
+  })();
+});
 
 module.exports = db;
