@@ -4,10 +4,10 @@ Jurnal harian dengan mood tracker (beberapa catatan per hari), dashboard tren mo
 
 ## Fitur
 
-- **Hari ini** — pilih mood, tulis dengan mode Harian (empat langkah tetap + rangkuman AI; ini yang terbuka duluan) atau Check Up (pertanyaan acak). Tiap catatan bisa diberi **foto** dari kamera atau galeri (maksimal 4 per catatan; catatan boleh hanya berisi foto). Kartu **Hari ini di masa lalu** menampilkan catatanmu seminggu, sebulan, 3 dan 6 bulan lalu, serta tanggal yang sama di tahun-tahun sebelumnya.
+- **Hari ini** — halaman dibuka langsung pada **kartu tulis**, fitur utamanya: kartu terbesar di halaman, berisi pilihan mode, pertanyaan, kotak tulis, foto, perasaan hari ini, dan tombol simpan. Tulis dengan mode Harian (empat langkah tetap + rangkuman AI; ini yang terbuka duluan) atau Check Up (pertanyaan acak). Tiap catatan bisa diberi **foto** dari kamera atau galeri (maksimal 4 per catatan; catatan boleh hanya berisi foto). Kartu **Hari ini di masa lalu** menampilkan catatanmu seminggu, sebulan, 3 dan 6 bulan lalu, serta tanggal yang sama di tahun-tahun sebelumnya.
 - **Dashboard** — streak, grafik mood 7/30 hari, pengamatan AI mingguan, **kalender mood** per bulan (ketuk tanggal untuk membuka catatannya), dan **streak bareng**.
 - **Riwayat** — **pencarian**, saringan mood, **#tag** (tulis `#kerja` di catatan, otomatis jadi tag), **favorit** (bintang per catatan), rangkuman AI, ekspor `.txt`, cetak/PDF, serta **cadangan `.json`** yang bisa dipulihkan lagi.
-- **Tur fitur** — saat pertama kali masuk, tiap akun diajak keliling langkah demi langkah (16 langkah, bisa dilewati) melewati semua fitur di ketiga halaman. Tur bisa dibuka lagi kapan saja lewat ikon lonceng.
+- **Tur fitur** — saat pertama kali masuk, tiap akun diajak keliling langkah demi langkah (17 langkah, bisa dilewati) melewati semua fitur di ketiga halaman. Tur bisa dibuka lagi kapan saja lewat ikon lonceng.
 - **Akun** — satu server bisa dipakai beberapa orang. Tiap akun punya jurnal sendiri yang tidak bisa dibaca akun lain.
 
 ### Streak bareng

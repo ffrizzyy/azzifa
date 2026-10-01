@@ -124,8 +124,6 @@
   @keyframes rise{from{opacity:0; transform:translateY(28px) scale(.985);} to{opacity:1; transform:none;}}
 
   /* ---- Mood: circular icon grid with labels underneath ---- */
-  .mood-card{padding:22px 12px 14px;}
-  .mood-card .section-h{padding:0 10px;}
   .mood-row{display:grid; grid-template-columns:repeat(5,1fr); gap:4px;}
   .mood{background:none; border:none; cursor:pointer; padding:8px 2px 10px; border-radius:20px; text-align:center;}
   .mood .emoji{display:flex; align-items:center; justify-content:center; width:min(58px,100%); aspect-ratio:1; font-size:28px; border-radius:50%; margin:0 auto 9px; box-shadow:inset 0 1px 1px var(--hi);}
@@ -375,6 +373,35 @@
   .circle .confirm-row{margin-top:14px;}
   #circleCard .summary-err{margin:12px 0 0;}
 
+  /* ---- The composer: the journal card everything else is arranged around. It gets a wider,
+     rose-tinted tray, a soft glow, larger type and a taller writing area than any other card. ---- */
+  .composer{--bezel:8px; border-radius:38px; padding:18px 16px 16px;
+    background:linear-gradient(var(--card),var(--card)) padding-box, linear-gradient(140deg, rgba(214,69,110,.44), rgba(255,170,130,.36) 45%, rgba(214,69,110,.16)) border-box;
+    box-shadow:0 0 0 1px var(--ring), inset 0 0 0 1px var(--ring), inset 0 1px 1px var(--hi), 0 56px 90px -56px rgba(214,69,110,.62), 0 18px 36px -26px rgba(120,60,80,.24);}
+  .composer .mode-switch{margin-bottom:8px;}
+  .composer .mode-hint{margin:0 8px 20px;}
+  .composer .prompt-label{margin-bottom:10px;}
+  .composer .prompt-text{font-size:clamp(25px,6.8vw,30px); line-height:1.18;}
+  .composer textarea{min-height:200px; padding:18px; font-size:16.5px;}
+  .composer .save{height:64px; margin-top:20px; font-size:17px;}
+  .composer-body{padding:0 6px 4px;}
+  /* Harian's four steps, as a progress strip above the question */
+  .steps{display:flex; gap:5px; margin:0 0 16px;}
+  .steps i{flex:1; height:4px; border-radius:var(--r-pill); background:var(--paper-dim);}
+  .steps i.done{background:var(--rose);}
+  .steps i.now{background:var(--rose); opacity:.45;}
+  .field-label{margin:22px 2px 8px; font-size:12px; font-weight:700; color:var(--ink-soft);}
+  .composer .mood{padding:6px 2px 6px;}
+  .composer .mood .emoji{width:min(48px,100%); font-size:24px; margin-bottom:6px;}
+  .composer .mood .lbl{font-size:11.5px;}
+  /* Signed in, the page opens on the composer: the headline belongs to the sign-in screen. */
+  .hero.compact .hero-copy{display:none;}
+  .hero.compact .chat{margin:14px 0 14px;}
+  .hero.compact .chat-bubble{border-radius:22px 22px 22px 8px;}
+  .brand-word{font:800 15px 'Plus Jakarta Sans',sans-serif; letter-spacing:-0.02em; color:var(--ink);}
+  .brand-word + .date{font-weight:600; color:var(--ink-soft);}
+  @media (max-width:479px){ .brand-word{display:none;} .brand-word + .date{font-weight:700; color:var(--ink);} }
+
   /* ---- Pictures on a note ---- */
   .photo-bar{display:flex; flex-wrap:wrap; gap:0 8px;}
   .photos{display:flex; flex-wrap:wrap; gap:8px; margin-top:12px;}
@@ -438,7 +465,11 @@
     .side-empty{display:block;}
     .chips{margin:0 0 6px; padding:3px 2px 14px; flex-wrap:wrap; overflow:visible;}
     .card{padding:28px;}
-    .mood-card{padding:28px 18px 18px;}
+    .composer{padding:30px 30px 28px;}
+    .composer .prompt-text{font-size:34px;}
+    .composer textarea{min-height:240px;}
+    .hero.compact .hero-grid{display:block; padding:14px 8px 20px;}
+    .hero.compact .chat{max-width:560px;}
     .toast{bottom:32px;}
   }
   /* Riwayat's tools stay beside the list while it scrolls, when the window is tall enough to hold them. */
@@ -972,10 +1003,11 @@ function closePhoto(){ document.getElementById('lightbox')?.remove(); }
 // it lives on. A step whose target is not there — an empty Riwayat, say — is shown centred.
 const TOUR = [
   {tab:'today', title:()=>`Selamat datang, ${esc(me.name)}`, text:'Azzifa itu tempat cerita harianmu. Aku temani keliling sebentar, ya. Cuma sekitar semenit, dan bisa kamu lewati kapan saja.'},
-  {tab:'today', target:['.mood-card'], title:'Mulai dari perasaanmu', text:'Pilih satu yang paling pas untuk hari ini. Tidak ada jawaban salah, dan boleh kamu ganti kapan saja kalau suasana hatimu berubah.'},
+  {tab:'today', target:['.composer'], title:'Catatan harianmu', text:'Ini inti Azzifa: tempat kamu menulis setiap hari. Semua yang lain di aplikasi ini dibangun di sekitar kartu ini.'},
   {tab:'today', target:['.mode-switch'], title:'Dua cara menulis', text:'<b>Harian</b> menuntunmu lewat empat langkah, dari pagi sampai penutup hari. <b>Check Up</b> memberi satu pertanyaan bebas yang bisa kamu ganti sesukamu.'},
   {tab:'today', target:['.field-row'], title:'Tulis ceritamu', text:'Tulis apa saja, tidak perlu rapi. Tambahkan <b>#tag</b> seperti #kerja supaya gampang dicari nanti. Malas mengetik? Tekan ikon mikrofon dan ceritakan saja.'},
   {tab:'today', target:['.photo-bar'], title:'Tambahkan foto', text:'<b>Kamera</b> untuk memotret langsung, <b>Galeri</b> untuk memilih foto yang sudah ada. Satu catatan muat sampai empat foto, dan boleh hanya foto tanpa tulisan.'},
+  {tab:'today', target:['.mood-block'], title:'Tandai perasaanmu', text:'Pilih satu yang paling pas untuk hari ini. Tidak ada jawaban salah, dan boleh kamu ganti kapan saja kalau suasana hatimu berubah.'},
   {tab:'today', target:['.save'], title:'Simpan', text:'Tekan ini kalau sudah. Catatanmu langsung muncul di <b>Catatan hari ini</b>, dan ikon pensil di sana untuk mengubahnya. Tulisan yang belum disimpan tetap diingat kalau halaman tertutup.'},
   {tab:'today', target:['.topbar-actions'], title:'Streak, pengingat, dan tema', text:'Api menunjukkan berapa hari kamu menulis dalam seminggu terakhir. <b>Lonceng</b> untuk pengingat harian dan keluar akun. <b>Bulan</b> untuk beralih ke mode gelap.'},
   {tab:'today', target:['.tabs'], title:'Tiga halaman', text:'<b>Hari ini</b> untuk menulis, <b>Dashboard</b> untuk melihat polamu, <b>Riwayat</b> untuk membaca lagi semua catatan. Yuk, lihat Dashboard.'},
@@ -1126,29 +1158,48 @@ function renderToday(){
   const sideEmpty = !notes.length && !circles.length && !lookbacks().length;
 
   const modeSwitch = `
-    <div class="mode-switch" role="group" aria-label="Mode catatan hari ini">
-      <button class="${dayMode==='daily'?'active':''}" onclick="syncDraft(); setDayMode('daily')">${ICONS.calendar}Harian</button>
-      <button class="${dayMode==='checkup'?'active':''}" onclick="syncDraft(); setDayMode('checkup')">${ICONS.checkCircle}Check Up</button>
-    </div>
-    <p class="mode-hint">${dayMode==='daily' ? `${DAILY_STEPS.length} langkah tetap yang berakhir dengan rangkuman hari ini.` : 'Satu pertanyaan bebas, bisa diganti kapan saja.'}</p>`;
+      <div class="mode-switch" role="group" aria-label="Mode catatan hari ini">
+        <button class="${dayMode==='daily'?'active':''}" onclick="syncDraft(); setDayMode('daily')">${ICONS.calendar}Harian</button>
+        <button class="${dayMode==='checkup'?'active':''}" onclick="syncDraft(); setDayMode('checkup')">${ICONS.checkCircle}Check Up</button>
+      </div>
+      <p class="mode-hint">${dayMode==='daily' ? `${DAILY_STEPS.length} langkah tetap yang berakhir dengan rangkuman hari ini.` : 'Satu pertanyaan bebas, bisa diganti kapan saja.'}</p>`;
+  const stepLabel = editing ? 'Kamu sedang mengubah catatan ini' : (dayMode==='daily' ? `Langkah ${Math.min(notes.length+1,DAILY_STEPS.length)} dari ${DAILY_STEPS.length}` : 'Pertanyaan hari ini');
+  const steps = dayMode==='daily' ? `<div class="steps" aria-hidden="true">${DAILY_STEPS.map((_,i)=>`<i class="${i<notes.length ? 'done' : i===notes.length ? 'now' : ''}"></i>`).join('')}</div>` : '';
+  const moodBlock = `
+        <div class="mood-block">
+          <div class="field-label" id="mood-h">Perasaanmu hari ini</div>
+          <div class="mood-row" role="group" aria-labelledby="mood-h">
+            ${MOODS.map(m=>`<button class="mood ${moodNow===m.k?'sel':''}" aria-pressed="${moodNow===m.k}" onclick="syncDraft(); selectMood('${m.k}')"><span class="emoji" style="background:${m.c}${moodNow===m.k?'40':'26'}">${m.e}</span><span class="lbl">${m.l}</span></button>`).join('')}
+          </div>
+        </div>`;
 
-  const writingCard = dailyDone ? '' : `
-    <section class="card">
-      <div class="prompt-label">${editing ? 'Kamu sedang mengubah catatan ini' : (dayMode==='daily' ? `Langkah ${Math.min(notes.length+1,DAILY_STEPS.length)} dari ${DAILY_STEPS.length}` : 'Pertanyaan hari ini')}</div>
-      <p class="prompt-text">${esc(promptShown)}</p>
-      ${editing ? `<button class="btn-ghost-sm" onclick="cancelEdit()">Batal mengubah</button>` : (dayMode==='checkup' ? `<button class="btn-ghost-sm" onclick="syncDraft(); swapPrompt()">${ICONS.refresh}Ganti pertanyaan</button>` : '')}
-      <div class="field-row">
-        <textarea id="entryText" oninput="rememberDraft(this.value)" placeholder="Tulis apa saja, tidak perlu rapi. Pakai #tag untuk menandai topik.">${esc(val)}</textarea>
-        <button class="mic-btn" data-target="entryText" onclick="toggleMic('entryText')" title="Bicara" aria-label="Dikte suara">${ICONS.mic}</button>
+  // The composer is always on screen, even when Harian's four steps are finished: it is also
+  // where the mode is switched and the day's mood is set.
+  const composer = `
+    <section class="card composer" aria-label="Tulis catatan hari ini">
+      ${modeSwitch}
+      <div class="composer-body">
+        ${steps}
+        ${dailyDone ? `
+        <p class="prompt-text">Empat langkah hari ini sudah lengkap.</p>
+        <p class="summary-hint" style="margin:10px 0 0;">Masih ada yang mau diceritakan? Pindah ke Check Up di atas. Pertanyaannya bebas, dan boleh sebanyak yang kamu mau.</p>` : `
+        <div class="prompt-label">${stepLabel}</div>
+        <p class="prompt-text">${esc(promptShown)}</p>
+        ${editing ? `<button class="btn-ghost-sm" onclick="cancelEdit()">Batal mengubah</button>` : (dayMode==='checkup' ? `<button class="btn-ghost-sm" onclick="syncDraft(); swapPrompt()">${ICONS.refresh}Ganti pertanyaan</button>` : '')}
+        <div class="field-row">
+          <textarea id="entryText" oninput="rememberDraft(this.value)" placeholder="Tulis apa saja, tidak perlu rapi. Pakai #tag untuk menandai topik.">${esc(val)}</textarea>
+          <button class="mic-btn" data-target="entryText" onclick="toggleMic('entryText')" title="Bicara" aria-label="Dikte suara">${ICONS.mic}</button>
+        </div>
+        <div class="photo-bar">
+          <button class="btn-ghost-sm" onclick="pickPhoto('camera')">${ICONS.camera}Kamera</button>
+          <button class="btn-ghost-sm" onclick="pickPhoto('gallery')">${ICONS.image}Galeri</button>
+          <input type="file" id="photoCamera" accept="image/*" capture="environment" hidden onchange="addPhotos(this)">
+          <input type="file" id="photoGallery" accept="image/*" multiple hidden onchange="addPhotos(this)">
+        </div>
+        <div class="photos" id="photoStrip">${renderDraftPhotos()}</div>`}
+        ${moodBlock}
+        ${dailyDone ? '' : `<button class="save" onclick="saveEntry()"><span>${editing?'Perbarui catatan':'Simpan'}</span><span class="chev" aria-hidden="true">${ICONS.chev}</span></button>`}
       </div>
-      <div class="photo-bar">
-        <button class="btn-ghost-sm" onclick="pickPhoto('camera')">${ICONS.camera}Kamera</button>
-        <button class="btn-ghost-sm" onclick="pickPhoto('gallery')">${ICONS.image}Galeri</button>
-        <input type="file" id="photoCamera" accept="image/*" capture="environment" hidden onchange="addPhotos(this)">
-        <input type="file" id="photoGallery" accept="image/*" multiple hidden onchange="addPhotos(this)">
-      </div>
-      <div class="photos" id="photoStrip">${renderDraftPhotos()}</div>
-      <button class="save" onclick="saveEntry()"><span>${editing?'Perbarui catatan':'Simpan'}</span><span class="chev" aria-hidden="true">${ICONS.chev}</span></button>
     </section>`;
 
   const daySummaryCard = (dayMode==='daily' && notes.length>=DAILY_STEPS.length) ? `
@@ -1166,14 +1217,7 @@ function renderToday(){
 
   return `
     <div class="col col-main">
-    <section class="card mood-card" aria-labelledby="mood-h">
-      <h2 class="section-h" id="mood-h">Gimana perasaanmu hari ini?</h2>
-      <div class="mood-row" role="group" aria-label="Pilih mood">
-        ${MOODS.map(m=>`<button class="mood ${moodNow===m.k?'sel':''}" aria-pressed="${moodNow===m.k}" onclick="syncDraft(); selectMood('${m.k}')"><span class="emoji" style="background:${m.c}${moodNow===m.k?'40':'26'}">${m.e}</span><span class="lbl">${m.l}</span></button>`).join('')}
-      </div>
-    </section>
-    ${modeSwitch}
-    ${writingCard}
+    ${composer}
     ${daySummaryCard}
     </div>
     <div class="col col-side">
@@ -1207,7 +1251,7 @@ function setTab(t){
 // picking a mood updates that day straight away, so a feeling can change without writing more.
 async function selectMood(k){
   const existing = entries.find(e=>e.date===todayStr());
-  if(!existing){ selectedMood=k; render(); document.getElementById('entryText')?.focus(); return; }
+  if(!existing){ selectedMood=k; render(); return; }
   if(existing.mood===k) return;
   const entry = {...existing, mood:k};
   try{ await persistEntry(entry); }
@@ -1835,15 +1879,16 @@ function render(){
   let followCls = ' ghost', followText = '…';           // reserved slot until data is ready
   if(entriesReady){
     followText = !authed ? 'Masuk dulu, ya. Jurnalmu cuma bisa dibuka olehmu.'
-      : nToday===0 ? 'Kamu belum check-in hari ini. Mulai dari perasaanmu dulu, ya.' : `Hari ini sudah ada ${nToday} catatan. Mau nambah lagi?`;
+      : nToday===0 ? 'Kamu belum menulis hari ini. Cerita dulu sedikit, ya.' : `Hari ini sudah ada ${nToday} catatan. Mau nambah lagi?`;
     followCls = nudgeShown ? '' : ' late'; nudgeShown = true;
   }
   const dateLabel = new Date().toLocaleDateString('id-ID',{weekday:'short',day:'numeric',month:'short'});
   document.getElementById('app').innerHTML = `
-    <header class="hero">
+    <header class="hero${authed ? ' compact' : ''}">
       <div class="topbar">
         <div class="topbar-brand">
           <img src="${LOGO_URI}" alt="Logo Azzifa" width="28" height="28">
+          <span class="brand-word">Azzifa</span>
           <span class="date">${dateLabel}</span>
         </div>
         <div class="topbar-actions">
@@ -1864,9 +1909,9 @@ function render(){
         <div class="chat-stack">
           <div class="chat-bubble${intro}">
             <div class="chat-name">Azzifa</div>
-            <div class="chat-text">${getGreeting()}</div>
+            <div class="chat-text">${getGreeting()}${authed ? ' '+followText : ''}</div>
           </div>
-          <div class="chat-bubble${followCls}"${followCls===' late' ? ` style="animation-delay:${intro?'.85s':'.15s'}"` : ''}${followCls===' ghost' ? ' aria-hidden="true"' : ''}><div class="chat-text">${followText}</div></div>
+          ${authed ? '' : `<div class="chat-bubble${followCls}"${followCls===' late' ? ` style="animation-delay:${intro?'.85s':'.15s'}"` : ''}${followCls===' ghost' ? ' aria-hidden="true"' : ''}><div class="chat-text">${followText}</div></div>`}
         </div>
       </div>
       </div>
