@@ -17,6 +17,11 @@ const hashPassword = async (password, salt) => (await scrypt(password, salt, 64)
 const userCount = () => db.prepare('SELECT COUNT(*) AS n FROM users').get().n;
 const signupOpen = () => userCount() === 0 || String(process.env.ALLOW_SIGNUP || 'true').toLowerCase() !== 'false';
 
+// SIGNUP_CODE turns registration into invite-only: an account can only be created by someone
+// who was given the code. On a server open to the internet this is what keeps strangers out.
+const signupCode = () => String(process.env.SIGNUP_CODE || '');
+const codeMatches = (given) => crypto.timingSafeEqual(Buffer.from(sha256(String(given || ''))), Buffer.from(sha256(signupCode())));
+
 // Express 4 does not catch a rejected promise from an async handler: without this the request
 // would hang and the rejection would take the whole process down.
 const wrap = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
@@ -67,6 +72,8 @@ const loginFailures = limiter(8, 10 * 60 * 1000);
 // hash and a row. Behind a reverse proxy every visitor shares the proxy's address, so a busy
 // server may need SIGNUPS_PER_HOUR raised.
 const signups = limiter(Number(process.env.SIGNUPS_PER_HOUR) || 10, 60 * 60 * 1000);
+// Guessing the sign-up code: 10 wrong tries from one address, then a 10 minute pause.
+const codeGuesses = limiter(10, 10 * 60 * 1000);
 
 /** Rejects the request with 401 unless it carries a live session; sets req.user otherwise. */
 function requireUser(req, res, next) {
@@ -85,13 +92,20 @@ const router = express.Router();
 
 // Lets the sign-in screen know what to offer before anyone is logged in.
 router.get('/config', (req, res) => {
-  res.json({ signup: signupOpen(), firstAccount: userCount() === 0 });
+  res.json({ signup: signupOpen(), firstAccount: userCount() === 0, needsCode: !!signupCode() });
 });
 
 router.post('/register', wrap(async (req, res) => {
   if (!signupOpen()) return res.status(403).json({ error: 'Pendaftaran akun baru sedang ditutup. Coba hubungi pemilik server ini, ya.' });
   if (signups.blocked(req.ip)) return res.status(429).json({ error: 'Sudah banyak akun dibuat dari sini. Coba lagi nanti, ya.' });
   const body = req.body || {};
+  if (signupCode()) {
+    if (codeGuesses.blocked(req.ip)) return res.status(429).json({ error: 'Terlalu banyak percobaan. Istirahat dulu sekitar 10 menit, lalu coba lagi, ya.' });
+    if (!codeMatches(body.code)) {
+      codeGuesses.hit(req.ip);
+      return res.status(403).json({ error: 'Kode pendaftarannya belum cocok. Minta kodenya ke pemilik server ini, ya.' });
+    }
+  }
   const username = String(body.username || '').trim().toLowerCase();
   const name = String(body.name || '').trim().slice(0, 30) || username;
   const password = String(body.password || '');

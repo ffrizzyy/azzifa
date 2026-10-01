@@ -375,6 +375,47 @@
   .circle .confirm-row{margin-top:14px;}
   #circleCard .summary-err{margin:12px 0 0;}
 
+  /* ---- Pictures on a note ---- */
+  .photo-bar{display:flex; flex-wrap:wrap; gap:0 8px;}
+  .photos{display:flex; flex-wrap:wrap; gap:8px; margin-top:12px;}
+  .photos:empty{display:none;}
+  .photo{position:relative; display:block; flex-shrink:0; width:76px; height:76px; padding:0; border:none; border-radius:18px; overflow:hidden; background:var(--well); box-shadow:0 0 0 1px var(--ring); cursor:zoom-in; transition:transform .45s var(--ease), box-shadow .45s var(--ease);}
+  .photo img{display:block; width:100%; height:100%; object-fit:cover;}
+  .photo.draft, .photo.busy{cursor:default;}
+  .photo-x{position:absolute; top:4px; right:4px; width:24px; height:24px; padding:0; border:none; border-radius:50%; background:rgba(42,25,32,.72); color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer;}
+  .photo.busy::after{content:""; position:absolute; inset:0; transform:translateX(-100%); background:linear-gradient(90deg, transparent, var(--hover), transparent); animation:sweep 1.4s var(--ease) infinite;}
+  @media (hover:hover) and (pointer:fine){ .photo:not(.draft):not(.busy):hover{transform:scale(1.05); box-shadow:0 0 0 1px var(--ring), var(--shadow-float);} }
+  /* Full-size view: a fixed overlay, so the blur behind it never repaints with the page. */
+  .lightbox{position:fixed; inset:0; z-index:45; display:flex; align-items:center; justify-content:center; padding:24px; background:rgba(24,12,17,.86); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); cursor:zoom-out; animation:settle .5s var(--ease) both;}
+  .lightbox img{max-width:100%; max-height:100%; border-radius:20px; box-shadow:0 40px 80px -30px rgba(0,0,0,.8); animation:rise .6s var(--ease) both;}
+  .lightbox .icon-btn{position:absolute; top:20px; right:20px; background:rgba(255,255,255,.16); color:#fff;}
+
+  /* ---- Camera: live preview in the same fixed overlay as the full-size picture view ---- */
+  .camera{flex-direction:column; gap:20px; cursor:default; padding:24px 16px calc(24px + env(safe-area-inset-bottom,0px));}
+  .camera video{min-height:0; max-width:100%; max-height:calc(100% - 116px); border-radius:24px; background:#000; box-shadow:0 40px 80px -30px rgba(0,0,0,.8);}
+  .camera video.mirror{transform:scaleX(-1);}   /* a front camera should behave like a mirror while you frame the shot */
+  .cam-note{margin:0; font-size:14px; color:#fff;}
+  .cam-bar{display:flex; align-items:center; justify-content:center; gap:28px; min-height:80px;}
+  .camera .icon-btn{position:static; width:44px; height:44px;}
+  .cam-shutter{width:68px; height:68px; padding:0; border:none; border-radius:50%; background:#fff; box-shadow:0 0 0 4px rgba(24,12,17,.9), 0 0 0 7px #fff; cursor:pointer; transition:transform .45s var(--ease), opacity .45s var(--ease);}
+  .cam-shutter:active{transform:scale(.92);}
+  .cam-shutter:disabled{opacity:.4; cursor:default;}
+  .cam-shutter:focus-visible{outline-color:#fff; outline-offset:10px;}
+
+  /* ---- First-visit tour: one dimmed layer with a hole over the thing being explained ---- */
+  .tour{position:fixed; inset:0; z-index:60;}
+  .tour-hole{position:fixed; border-radius:24px; box-shadow:0 0 0 200vmax rgba(24,12,17,.68); pointer-events:none;}
+  .tour-card{position:fixed; width:min(360px,calc(100vw - 32px)); padding:20px; border:var(--bezel) solid transparent; border-radius:var(--r-card);
+    background:linear-gradient(var(--card),var(--card)) padding-box, rgba(255,255,255,.22) border-box; box-shadow:0 40px 80px -30px rgba(0,0,0,.7);}
+  .tour-card.in{animation:rise .6s var(--ease) both;}
+  .tour-card .section-h{margin-bottom:8px;}
+  .tour-text{margin:0; font-size:14.5px; line-height:1.6; color:var(--ink); text-wrap:pretty;}
+  .tour-actions{display:flex; align-items:center; gap:8px; margin-top:18px;}
+  .tour-actions .btn-ghost-sm{margin-top:0;}
+  .tour-next{margin-left:auto; padding:10px 20px; border:none; border-radius:var(--r-pill); background:var(--clay); color:#fff; font:700 14px 'Plus Jakarta Sans',sans-serif; cursor:pointer; box-shadow:0 14px 22px -14px var(--clay); transition:transform .45s var(--ease);}
+  .tour-next:active{transform:scale(.96);}
+  .tour-next:focus-visible{outline-color:var(--ink);}
+
   /* ---- Desktop: a compact masthead (headline left, greeting right), then each tab as two
      unequal columns using the full width. The top bar is a floating glass island that stays
      put while the page scrolls; the tab pill is fixed separately but sits nested inside it. ---- */
@@ -496,6 +537,9 @@ ICONS.chevRight = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
 ICONS.search = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>';
 ICONS.star = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.8l-5.2 2.8 1-5.8-4.3-4.1 5.9-.8z"/></svg>';
 ICONS.starFill = ICONS.star.replace('fill="none"','fill="currentColor"');
+ICONS.camera = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></svg>';
+ICONS.image = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5-5-8 8"/></svg>';
+ICONS.close = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 ICONS.check = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 ICONS.pencil = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
 ICONS.trash = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
@@ -521,8 +565,13 @@ let popoverFresh = false;
 let nudgeShown = false;
 let editingIdx = null;
 let stashedDraft = null;
+let draftPhotos = [];        // ids of pictures already uploaded for the note being written
+let stashedPhotos = null;    // the new note's pictures, set aside while an older note is being edited
+let photoBusy = 0;           // uploads in flight
+let tourOn = false, tourIdx = 0;
+let tourDone = true;         // from the server; false starts the tour on this account's first visit
 let promptSynced = false;
-let dayMode = 'checkup';
+let dayMode = 'daily';      // Harian opens first; Check Up is one tap away
 let daySummaryLoading = false;
 let daySummaryErr = null;
 let confirmDeleteKey = null;
@@ -542,7 +591,7 @@ let calMonth = null;         // 'YYYY-MM' shown by the Dashboard calendar; null 
 let histQuery = '', histMood = null, histTag = null, histFav = false, histDate = null;
 let importPending = null, importBusy = false;
 let me = null;               // the signed-in account; null shows the sign-in screen
-let authMode = 'login', authBusy = false, authCfg = {signup:true, firstAccount:false};
+let authMode = 'login', authBusy = false, authCfg = {signup:true, firstAccount:false, needsCode:false};
 let circles = [], leaveConfirmId = null;
 // ---------- Storage backend: real Express + SQLite API ----------
 // Every server call goes through here: a 401 in the middle of a session (expired, or signed out
@@ -575,8 +624,9 @@ async function initStorage(){
     dashboardInsight = settingsRes.insightWeek===weekKey() ? (settingsRes.insightText||null) : null;
     summaryText = settingsRes.summaryText || null; summaryAt = settingsRes.summaryAt || null;
     if(settingsRes.summaryRange) summaryRange = settingsRes.summaryRange;
-    if(settingsRes.dayMode==='daily') dayMode='daily';
+    dayMode = settingsRes.dayMode==='checkup' ? 'checkup' : 'daily';
     if(settingsRes.ai) ai = settingsRes.ai;
+    tourDone = !!settingsRes.tourDone;
     restoreDraft();
     entriesReady = true; syncPromptOnce();
   }catch(e){
@@ -584,6 +634,7 @@ async function initStorage(){
     showToast('Azzifa belum bisa terhubung ke server. Coba muat ulang sebentar lagi, ya.');
   }
   render();
+  if(me && !tourDone) setTimeout(startTour, 1500);   // after the greeting has had its moment
 }
 function persistProfile(patch){
   api('/api/settings', {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(patch)})
@@ -601,15 +652,20 @@ function asDate(d){ return typeof d==='string' && /^\d{4}-\d{2}-\d{2}$/.test(d) 
 // The unsaved draft survives a refresh or an accidental tab close. It is kept in this browser
 // only, per account and per day, and cleared once the note is saved or the account signs out.
 const draftKey = () => 'azzifa_draft_' + (me ? me.username : '');
-function rememberDraft(text){
-  draftText = text;
+function saveDraft(){
   if(!me || editingIdx!==null) return;   // editing an existing note is not a draft worth restoring
-  try{ if(text) localStorage.setItem(draftKey(), JSON.stringify({day:todayStr(), text})); else localStorage.removeItem(draftKey()); }catch(e){}
+  try{
+    if(draftText || draftPhotos.length) localStorage.setItem(draftKey(), JSON.stringify({day:todayStr(), text:draftText||'', photos:draftPhotos}));
+    else localStorage.removeItem(draftKey());
+  }catch(e){}
 }
+function rememberDraft(text){ draftText = text; saveDraft(); }
 function restoreDraft(){
   try{
     const saved = JSON.parse(localStorage.getItem(draftKey()) || 'null');
-    if(saved && saved.day===todayStr() && saved.text && draftText===null) draftText = saved.text;
+    if(!saved || saved.day!==todayStr() || draftText!==null) return;
+    if(saved.text) draftText = saved.text;
+    if(Array.isArray(saved.photos)) draftPhotos = saved.photos.filter(isPhotoId).slice(0, MAX_PHOTOS);
   }catch(e){}
 }
 function forgetDraft(){ try{ localStorage.removeItem(draftKey()); }catch(e){} }
@@ -783,6 +839,235 @@ function checkReminderTick(){
 }
 setInterval(checkReminderTick, 30000);
 
+// ---------- Pictures on a note ----------
+const MAX_PHOTOS = 4;          // per note; the server enforces the same cap
+const PHOTO_MAX_SIDE = 1600;   // longest side after shrinking, in pixels
+const isPhotoId = id => typeof id==='string' && /^[a-f0-9]{32}$/.test(id);
+// Phone cameras produce 5-10 MB files. Each picture is redrawn smaller and re-encoded as JPEG in
+// the browser before upload, which also drops the location and device details cameras embed.
+async function shrinkPhoto(file){
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, PHOTO_MAX_SIDE/Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(bitmap.width*scale)); canvas.height = Math.max(1, Math.round(bitmap.height*scale));
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);   // JPEG has no transparency
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  if(bitmap.close) bitmap.close();
+  return new Promise((resolve, reject)=>canvas.toBlob(b=>b ? resolve(b) : reject(new Error('encode failed')), 'image/jpeg', .85));
+}
+// "Kamera" opens a live preview in the page wherever the browser allows one. Browsers only
+// allow it on HTTPS or localhost; elsewhere the camera input is the fallback, which on a phone
+// still hands over to its camera app.
+function pickPhoto(source){
+  if(source==='gallery'){ document.getElementById('photoGallery')?.click(); return; }
+  if(draftPhotos.length+photoBusy>=MAX_PHOTOS){ showToast(`Satu catatan muat ${MAX_PHOTOS} foto. Simpan dulu, lalu lanjut di catatan berikutnya, ya.`); return; }
+  if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) openCamera();
+  else document.getElementById('photoCamera')?.click();
+}
+
+// ---------- Camera ----------
+let camStream = null, camDevices = [], camIndex = 0;
+async function openCamera(){
+  closeCamera();
+  const box = document.createElement('div');
+  box.className = 'lightbox camera'; box.id = 'camera';
+  box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', 'Kamera');
+  box.innerHTML = `<video autoplay playsinline muted></video>
+    <p class="cam-note" role="status">Menyalakan kamera…</p>
+    <div class="cam-bar">
+      <button class="icon-btn" id="camFlip" hidden onclick="flipCamera()" title="Ganti kamera" aria-label="Ganti kamera">${ICONS.refresh}</button>
+      <button class="cam-shutter" onclick="snapPhoto()" title="Ambil foto" aria-label="Ambil foto" disabled></button>
+      <button class="icon-btn" onclick="closeCamera()" title="Tutup kamera" aria-label="Tutup kamera">${ICONS.close}</button>
+    </div>`;
+  document.body.appendChild(box);
+  await startCamera();
+}
+// First open prefers the back camera; "Ganti kamera" then walks through every camera the device has.
+async function startCamera(deviceId){
+  stopCameraStream();
+  const video = deviceId ? {deviceId:{exact:deviceId}} : {facingMode:{ideal:'environment'}};
+  try{
+    camStream = await navigator.mediaDevices.getUserMedia({video:{...video, width:{ideal:1920}, height:{ideal:1440}}, audio:false});
+  }catch(e){
+    closeCamera();
+    showToast(e.name==='NotAllowedError' ? 'Kameranya belum diizinkan. Kamu bisa mengizinkannya lewat ikon di bilah alamat browser.'
+      : e.name==='NotFoundError' ? 'Kameranya belum ketemu di perangkat ini. Kamu tetap bisa pilih foto dari Galeri.'
+      : 'Kameranya belum bisa dinyalakan. Mungkin sedang dipakai aplikasi lain. Coba lagi sebentar lagi, ya.');
+    return;
+  }
+  const box = document.getElementById('camera');
+  if(!box){ stopCameraStream(); return; }   // closed while the permission prompt was still open
+  const el = box.querySelector('video'), track = camStream.getVideoTracks()[0];
+  el.srcObject = camStream;
+  el.classList.toggle('mirror', track.getSettings().facingMode!=='environment');
+  el.onloadedmetadata = ()=>{
+    box.querySelector('.cam-note').hidden = true;
+    const shutter = box.querySelector('.cam-shutter'); shutter.disabled = false; shutter.focus();
+  };
+  // Device names and ids are only listed once permission has been given, so this comes last.
+  camDevices = (await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput');
+  camIndex = Math.max(0, camDevices.findIndex(d=>d.deviceId===track.getSettings().deviceId));
+  const flip = document.getElementById('camFlip'); if(flip) flip.hidden = camDevices.length<2;
+}
+function flipCamera(){
+  if(camDevices.length<2) return;
+  camIndex = (camIndex+1) % camDevices.length;
+  startCamera(camDevices[camIndex].deviceId);
+}
+// The frame goes through the same shrink-and-upload path as a picture chosen from the gallery.
+function snapPhoto(){
+  const el = document.querySelector('#camera video');
+  if(!el || !el.videoWidth) return;
+  const canvas = document.createElement('canvas');
+  canvas.width = el.videoWidth; canvas.height = el.videoHeight;
+  canvas.getContext('2d').drawImage(el, 0, 0);
+  canvas.toBlob(blob=>{ closeCamera(); if(blob) addPhotoFiles([new File([blob], 'kamera.jpg', {type:'image/jpeg'})]); }, 'image/jpeg', .92);
+}
+function stopCameraStream(){ if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream = null; } }
+function closeCamera(){ stopCameraStream(); document.getElementById('camera')?.remove(); }
+function addPhotos(input){ const files=[...input.files]; input.value=''; addPhotoFiles(files); }
+async function addPhotoFiles(files){
+  const room = Math.max(0, MAX_PHOTOS - draftPhotos.length - photoBusy);
+  if(files.length>room) showToast(`Satu catatan muat ${MAX_PHOTOS} foto. ${room ? 'Sisanya belum ikut, ya.' : 'Simpan dulu, lalu lanjut di catatan berikutnya, ya.'}`);
+  for(const file of files.slice(0, room)){
+    photoBusy++; paintPhotoStrip();
+    try{
+      const blob = await shrinkPhoto(file);
+      const res = await api('/api/photos', {method:'POST', headers:{'Content-Type':'image/jpeg'}, body:blob});
+      const data = await res.json();
+      if(res.ok){ draftPhotos = [...draftPhotos, data.id]; saveDraft(); }
+      else showToast(data.error || 'Fotonya belum berhasil diunggah. Coba lagi sebentar lagi, ya.');
+    }catch(e){ showToast('Fotonya belum bisa dibaca. Coba foto lain, ya.'); }
+    photoBusy--; paintPhotoStrip();
+  }
+}
+function dropDraftPhoto(id){ draftPhotos = draftPhotos.filter(p=>p!==id); saveDraft(); paintPhotoStrip(); }
+// Repaints only the strip, so adding a picture never rebuilds the textarea being typed in.
+function paintPhotoStrip(){ const el=document.getElementById('photoStrip'); if(el) el.innerHTML=renderDraftPhotos(); }
+function renderDraftPhotos(){
+  return draftPhotos.map(id=>`<span class="photo draft"><img src="/api/photos/${id}" alt="Foto untuk catatan ini" onerror="dropDraftPhoto('${id}')"><button class="photo-x" onclick="dropDraftPhoto('${id}')" title="Lepas foto" aria-label="Lepas foto">${ICONS.close}</button></span>`).join('')
+    + '<span class="photo busy" role="status" aria-label="Mengunggah foto"></span>'.repeat(photoBusy);
+}
+function renderPhotos(ids){
+  const list = Array.isArray(ids) ? ids.filter(isPhotoId) : [];
+  if(!list.length) return '';
+  return `<div class="photos">${list.map(id=>`<button class="photo" onclick="openPhoto('${id}')" aria-label="Lihat foto"><img src="/api/photos/${id}" alt="Foto di catatan" loading="lazy"></button>`).join('')}</div>`;
+}
+// Full-size view. It lives outside #app, so re-rendering the page underneath does not close it.
+function openPhoto(id){
+  closePhoto();
+  const box = document.createElement('div');
+  box.className = 'lightbox'; box.id = 'lightbox';
+  box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', 'Foto');
+  box.innerHTML = `<img src="/api/photos/${id}" alt="Foto di catatan"><button class="icon-btn" aria-label="Tutup foto">${ICONS.close}</button>`;
+  box.onclick = closePhoto;
+  document.body.appendChild(box);
+  box.querySelector('button').focus();
+}
+function closePhoto(){ document.getElementById('lightbox')?.remove(); }
+
+// ---------- First-visit tour ----------
+// Each step points at one thing on the page (the first selector that is on screen), on the tab
+// it lives on. A step whose target is not there — an empty Riwayat, say — is shown centred.
+const TOUR = [
+  {tab:'today', title:()=>`Selamat datang, ${esc(me.name)}`, text:'Azzifa itu tempat cerita harianmu. Aku temani keliling sebentar, ya. Cuma sekitar semenit, dan bisa kamu lewati kapan saja.'},
+  {tab:'today', target:['.mood-card'], title:'Mulai dari perasaanmu', text:'Pilih satu yang paling pas untuk hari ini. Tidak ada jawaban salah, dan boleh kamu ganti kapan saja kalau suasana hatimu berubah.'},
+  {tab:'today', target:['.mode-switch'], title:'Dua cara menulis', text:'<b>Harian</b> menuntunmu lewat empat langkah, dari pagi sampai penutup hari. <b>Check Up</b> memberi satu pertanyaan bebas yang bisa kamu ganti sesukamu.'},
+  {tab:'today', target:['.field-row'], title:'Tulis ceritamu', text:'Tulis apa saja, tidak perlu rapi. Tambahkan <b>#tag</b> seperti #kerja supaya gampang dicari nanti. Malas mengetik? Tekan ikon mikrofon dan ceritakan saja.'},
+  {tab:'today', target:['.photo-bar'], title:'Tambahkan foto', text:'<b>Kamera</b> untuk memotret langsung, <b>Galeri</b> untuk memilih foto yang sudah ada. Satu catatan muat sampai empat foto, dan boleh hanya foto tanpa tulisan.'},
+  {tab:'today', target:['.save'], title:'Simpan', text:'Tekan ini kalau sudah. Catatanmu langsung muncul di <b>Catatan hari ini</b>, dan ikon pensil di sana untuk mengubahnya. Tulisan yang belum disimpan tetap diingat kalau halaman tertutup.'},
+  {tab:'today', target:['.topbar-actions'], title:'Streak, pengingat, dan tema', text:'Api menunjukkan berapa hari kamu menulis dalam seminggu terakhir. <b>Lonceng</b> untuk pengingat harian dan keluar akun. <b>Bulan</b> untuk beralih ke mode gelap.'},
+  {tab:'today', target:['.tabs'], title:'Tiga halaman', text:'<b>Hari ini</b> untuk menulis, <b>Dashboard</b> untuk melihat polamu, <b>Riwayat</b> untuk membaca lagi semua catatan. Yuk, lihat Dashboard.'},
+  {tab:'trend', target:['.bento'], title:'Ringkasan perjalananmu', text:'Streak terpanjangmu, jumlah catatan bulan ini, dan hari yang biasanya terasa paling berat.'},
+  {tab:'trend', target:['#circleCard'], title:'Streak bareng', text:'Ajak teman atau keluarga menulis bersama. Buat grup, bagikan <b>kode undangan</b>-nya, dan streak naik setiap hari kalian semua menulis. Mereka hanya melihat nama dan sudah-belum menulis, bukan isi catatanmu.'},
+  {tab:'trend', target:['.tab-trend .col-main > .card'], title:'Perjalanan perasaanmu', text:'Grafik mood 7 atau 30 hari terakhir. Di bawahnya ada pengamatan mingguan dari AI, kalau fitur itu diaktifkan di server ini.'},
+  {tab:'trend', target:['.tab-trend .col-side > .card:last-child'], title:'Kalender mood', text:'Setiap tanggal diwarnai sesuai perasaanmu hari itu. Ketuk tanggal yang berwarna untuk membuka catatannya.'},
+  {tab:'history', target:['.search'], title:'Cari dan saring', text:'Ketik kata apa saja untuk mencari. Tombol di bawahnya menyaring berdasarkan <b>favorit</b>, mood, atau #tag yang pernah kamu pakai.'},
+  {tab:'history', target:['#histList', '.tab-history .card'], title:'Semua catatanmu', text:'Di sini semua yang pernah kamu tulis. <b>Bintang</b> untuk menandai favorit, tempat sampah untuk menghapus, dan ketuk foto untuk melihatnya lebih besar.'},
+  {tab:'history', target:['.actions'], title:'Bawa pulang ceritamu', text:'Ekspor jadi teks, cetak atau simpan sebagai PDF, dan <b>cadangkan</b> ke file .json yang bisa dipulihkan lagi kapan saja, lengkap dengan fotonya.'},
+  {tab:'today', title:'Sekarang giliranmu', text:'Itu saja. Tidak perlu panjang, yang penting kamu mampir. Tur ini bisa dibuka lagi lewat ikon lonceng kapan pun kamu mau.'},
+];
+let tourWatch = null;
+function startTour(){
+  if(!me || tourOn) return;
+  closePhoto(); closeCamera();
+  tourOn = true; tourIdx = 0;
+  const box = document.createElement('div');
+  box.className = 'tour'; box.id = 'tour';
+  box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true'); box.setAttribute('aria-labelledby', 'tourTitle');
+  box.innerHTML = '<div class="tour-hole"></div><div class="tour-card" aria-live="polite"></div>';
+  document.body.appendChild(box);
+  document.documentElement.style.overflow = 'hidden';   // the page holds still while it is being explained
+  // Late arrivals (circles, the weekly observation) can move things: follow them.
+  if('ResizeObserver' in window){ tourWatch = new ResizeObserver(placeTour); tourWatch.observe(document.getElementById('app')); }
+  showTourStep();
+}
+function showTourStep(){
+  const step = TOUR[tourIdx], last = tourIdx===TOUR.length-1;
+  if(tab!==step.tab) setTab(step.tab);
+  const card = document.querySelector('#tour .tour-card');
+  card.innerHTML = `
+    <span class="eyebrow">Langkah ${tourIdx+1} dari ${TOUR.length}</span>
+    <h2 class="section-h" id="tourTitle">${typeof step.title==='function' ? step.title() : step.title}</h2>
+    <p class="tour-text">${step.text}</p>
+    <div class="tour-actions">
+      ${tourIdx>0 ? '<button class="btn-ghost-sm" onclick="tourGo(-1)">Kembali</button>' : ''}
+      ${last ? '' : '<button class="btn-ghost-sm" onclick="endTour(true)">Lewati</button>'}
+      <button class="tour-next" onclick="tourGo(1)">${last ? 'Mulai menulis' : 'Lanjut'}</button>
+    </div>`;
+  card.classList.remove('in'); void card.offsetWidth; card.classList.add('in');   // replay the entrance
+  placeTour();
+  card.querySelector('.tour-next').focus({preventScroll:true});
+}
+// Puts the hole over the step's target and the card beside it: below if there is room, else
+// above, else pinned to the bottom of the screen.
+function placeTour(){
+  const box = document.getElementById('tour');
+  if(!box) return;
+  const hole = box.querySelector('.tour-hole'), card = box.querySelector('.tour-card');
+  const vw = window.innerWidth, vh = window.innerHeight, cw = card.offsetWidth, ch = card.offsetHeight;
+  const el = (TOUR[tourIdx].target||[]).map(q=>document.querySelector(q)).find(e=>e && e.getClientRects().length);
+  if(!el){
+    Object.assign(hole.style, {left:vw/2+'px', top:vh/2+'px', width:'0px', height:'0px'});
+    Object.assign(card.style, {left:(vw-cw)/2+'px', top:Math.max(16,(vh-ch)/2)+'px'});
+    return;
+  }
+  // Bring the target just under the top of the screen (below the floating bar on desktop), which
+  // leaves the rest of the screen for the card. Things that float with the screen stay put.
+  let floats = false;
+  for(let n=el; n && n!==document.body; n=n.parentElement) if(getComputedStyle(n).position==='fixed'){ floats = true; break; }
+  if(!floats) window.scrollBy({top: el.getBoundingClientRect().top - (vw>=1024 ? 110 : 72), behavior:'instant'});
+  const r = el.getBoundingClientRect();
+  const left = Math.max(8, r.left-8), top = Math.max(8, r.top-8), right = Math.min(vw-8, r.right+8), bottom = Math.min(vh-8, r.bottom+8);
+  const fitsBelow = vh-bottom>=ch+28, fitsAbove = top>=ch+28;
+  const cardTop = fitsBelow ? bottom+14 : fitsAbove ? top-14-ch : vh-ch-16;
+  // A target too tall to share the screen keeps its top part lit, above the pinned card.
+  const holeBottom = !fitsBelow && !fitsAbove && cardTop-12-top>=80 ? cardTop-12 : bottom;
+  const radius = Math.min(40, (parseFloat(getComputedStyle(el).borderTopLeftRadius)||16)+8);
+  Object.assign(hole.style, {left:left+'px', top:top+'px', width:(right-left)+'px', height:(holeBottom-top)+'px', borderRadius:radius+'px'});
+  Object.assign(card.style, {left:Math.min(Math.max(16,(left+right)/2-cw/2), vw-cw-16)+'px', top:cardTop+'px'});
+}
+function tourGo(d){
+  if(!tourOn) return;
+  if(tourIdx+d>=TOUR.length){ endTour(true); return; }
+  tourIdx = Math.max(0, tourIdx+d);
+  showTourStep();
+}
+// finished=true (the last step, or "Lewati") is remembered on the account so it never auto-starts again.
+function endTour(finished){
+  if(!tourOn) return;
+  tourOn = false;
+  if(tourWatch){ tourWatch.disconnect(); tourWatch = null; }
+  document.getElementById('tour')?.remove();
+  document.documentElement.style.overflow = '';
+  if(!finished) return;
+  if(!tourDone){ tourDone = true; persistProfile({tourDone:true}); }
+  if(tab!=='today') setTab('today');
+  window.scrollTo({top:0, behavior:'instant'});
+}
+function replayTour(){ closeSettings(false); startTour(); }
+
 // ---------- Today tab ----------
 function syncDraft(){ const ta=document.getElementById('entryText'); if(ta) draftText=ta.value; }
 function openSettings(){ syncDraft(); showSettings = !showSettings; popoverFresh = showSettings; render(); }
@@ -796,7 +1081,18 @@ document.addEventListener('click', e=>{
   const inside = e.composedPath().some(n=>n.classList && (n.classList.contains('popover') || n.classList.contains('bell-btn')));
   if(!inside) closeSettings(false);
 });
-document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeSettings(true); });
+document.addEventListener('keydown', e=>{
+  if(tourOn){
+    if(e.key==='Escape') endTour(true);
+    else if(e.key==='ArrowRight') tourGo(1);
+    else if(e.key==='ArrowLeft') tourGo(-1);
+    return;
+  }
+  if(e.key!=='Escape') return;
+  if(document.getElementById('camera')) closeCamera();
+  else if(document.getElementById('lightbox')) closePhoto();
+  else closeSettings(true);
+});
 function renderSettingsPanel(fresh){
   const notifSupported = 'Notification' in window;
   return `
@@ -809,6 +1105,7 @@ function renderSettingsPanel(fresh){
         <label class="switch"><input type="checkbox" ${reminder.enabled?'checked':''} onchange="toggleReminder(this.checked)" aria-label="Aktifkan pengingat harian"><span class="slider"></span></label>
       </div>
       <div class="popover-row"><span>Jam pengingat</span><input type="time" value="${reminder.time}" onchange="setReminderTime(this.value)"></div>
+      <div class="popover-row"><span>Tur fitur</span><button class="btn-ghost-sm" style="margin-top:0" onclick="replayTour()">Lihat lagi</button></div>
       <div class="popover-row">
         <div><div class="popover-title">${esc(me.name)}</div><div class="popover-hint">@${esc(me.username)}</div></div>
         <button class="btn-ghost-sm" style="margin-top:0" onclick="logout()">Keluar</button>
@@ -830,8 +1127,8 @@ function renderToday(){
 
   const modeSwitch = `
     <div class="mode-switch" role="group" aria-label="Mode catatan hari ini">
-      <button class="${dayMode==='checkup'?'active':''}" onclick="syncDraft(); setDayMode('checkup')">${ICONS.checkCircle}Check Up</button>
       <button class="${dayMode==='daily'?'active':''}" onclick="syncDraft(); setDayMode('daily')">${ICONS.calendar}Harian</button>
+      <button class="${dayMode==='checkup'?'active':''}" onclick="syncDraft(); setDayMode('checkup')">${ICONS.checkCircle}Check Up</button>
     </div>
     <p class="mode-hint">${dayMode==='daily' ? `${DAILY_STEPS.length} langkah tetap yang berakhir dengan rangkuman hari ini.` : 'Satu pertanyaan bebas, bisa diganti kapan saja.'}</p>`;
 
@@ -844,6 +1141,13 @@ function renderToday(){
         <textarea id="entryText" oninput="rememberDraft(this.value)" placeholder="Tulis apa saja, tidak perlu rapi. Pakai #tag untuk menandai topik.">${esc(val)}</textarea>
         <button class="mic-btn" data-target="entryText" onclick="toggleMic('entryText')" title="Bicara" aria-label="Dikte suara">${ICONS.mic}</button>
       </div>
+      <div class="photo-bar">
+        <button class="btn-ghost-sm" onclick="pickPhoto('camera')">${ICONS.camera}Kamera</button>
+        <button class="btn-ghost-sm" onclick="pickPhoto('gallery')">${ICONS.image}Galeri</button>
+        <input type="file" id="photoCamera" accept="image/*" capture="environment" hidden onchange="addPhotos(this)">
+        <input type="file" id="photoGallery" accept="image/*" multiple hidden onchange="addPhotos(this)">
+      </div>
+      <div class="photos" id="photoStrip">${renderDraftPhotos()}</div>
       <button class="save" onclick="saveEntry()"><span>${editing?'Perbarui catatan':'Simpan'}</span><span class="chev" aria-hidden="true">${ICONS.chev}</span></button>
     </section>`;
 
@@ -880,7 +1184,7 @@ function renderToday(){
           <div class="note-q">${esc(n.prompt)}</div>
           <button class="icon-ghost" onclick="editNote(${i})" title="Ubah catatan" aria-label="Ubah catatan">${ICONS.pencil}</button>
         </div>
-        <div class="note-t">${esc(n.text)}</div>
+        ${n.text ? `<div class="note-t">${esc(n.text)}</div>` : ''}${renderPhotos(n.photos)}
       </div>`).join('')}
     </section>` : ''}
     <div class="circle-strip" id="circleStrip">${renderCircleStrip()}</div>
@@ -915,33 +1219,37 @@ async function selectMood(k){
 }
 function swapPrompt(){ promptIdx=pickPrompt(); render(); }
 function editNote(i){
-  syncDraft(); if(editingIdx===null) stashedDraft=draftText;
-  editingIdx=i; draftText=null; render();
+  syncDraft(); if(editingIdx===null){ stashedDraft=draftText; stashedPhotos=draftPhotos; }
+  editingIdx=i; draftText=null; draftPhotos=[...(todayNotes()[i].photos||[])].filter(isPhotoId); render();
   const ta=document.getElementById('entryText');
   if(ta){ ta.focus(); ta.scrollIntoView({behavior:'smooth', block:'center'}); }
 }
-function cancelEdit(){ editingIdx=null; draftText=stashedDraft; stashedDraft=null; render(); }
+function cancelEdit(){ editingIdx=null; draftText=stashedDraft; stashedDraft=null; draftPhotos=stashedPhotos||[]; stashedPhotos=null; render(); }
 async function saveEntry(){
   const text=document.getElementById('entryText').value.trim();
-  if(!text){ showToast('Tulis dulu sedikit, ya. Satu kalimat juga boleh.'); return; }
+  if(photoBusy){ showToast('Fotonya masih diunggah. Tunggu sebentar, ya.'); return; }
+  if(!text && !draftPhotos.length){ showToast('Tulis dulu sedikit, ya. Satu kalimat atau satu foto juga boleh.'); return; }
   const date=todayStr();
   const existing=entries.find(e=>e.date===date);
   const notes=existing ? notesOf(existing).map(n=>({...n})) : [];
   const wasEditing = editingIdx!==null && !!notes[editingIdx];
-  if(wasEditing){ notes[editingIdx].text=text; }
+  if(wasEditing){
+    const n=notes[editingIdx]; n.text=text;
+    if(draftPhotos.length) n.photos=[...draftPhotos]; else delete n.photos;
+  }
   else{
     const stepPrompt = dayMode==='daily' ? (DAILY_STEPS[notes.length] || DAILY_STEPS[DAILY_STEPS.length-1]) : PROMPTS[promptIdx];
-    notes.push({prompt:stepPrompt, text, at:Date.now()});
+    notes.push({prompt:stepPrompt, text, at:Date.now(), ...(draftPhotos.length ? {photos:[...draftPhotos]} : {})});
   }
   const mood=selectedMood || (existing && existing.mood) || 'biasa';
-  const entry={date, mood, prompt:notes[0].prompt, text:notes.map(n=>n.text).join('\n\n'), notes, updatedAt:Date.now()};
+  const entry={date, mood, prompt:notes[0].prompt, text:notes.map(n=>n.text).filter(Boolean).join('\n\n'), notes, updatedAt:Date.now()};
   if(existing && existing.daySummary) entry.daySummary = existing.daySummary;
   try{ await persistEntry(entry); }
   catch(e){ showToast('Belum berhasil tersimpan. Tulisanmu masih aman di sini, coba lagi sebentar lagi, ya.'); return; }
   entries=[...entries.filter(e=>e.date!==date), entry];
   selectedMood=null; editingIdx=null;
-  if(wasEditing){ draftText=stashedDraft; stashedDraft=null; }
-  else{ draftText=null; forgetDraft(); promptIdx=pickPrompt(notes); }   // next Check Up question appears on its own
+  if(wasEditing){ draftText=stashedDraft; stashedDraft=null; draftPhotos=stashedPhotos||[]; stashedPhotos=null; }
+  else{ draftText=null; draftPhotos=[]; forgetDraft(); promptIdx=pickPrompt(notes); }   // next Check Up question appears on its own
   showToast(SAVE_MESSAGES[Math.floor(Math.random()*SAVE_MESSAGES.length)]); render();
   if(!wasEditing && circles.length) loadCircles();
   if(!wasEditing && ai.configured && dayMode==='daily' && notes.length===DAILY_STEPS.length){
@@ -1115,6 +1423,7 @@ async function submitAuth(ev){
     username:document.getElementById('authUser').value.trim(),
     name:(document.getElementById('authName')?.value || '').trim(),
     password:document.getElementById('authPass').value,
+    code:(document.getElementById('authCode')?.value || '').trim(),
   };
   authBusy=true; errEl.hidden=true;
   try{
@@ -1128,6 +1437,7 @@ async function submitAuth(ev){
 // Clears everything that belonged to the previous account before showing the sign-in screen.
 function signedOut(){
   me=null; entries=[]; circles=[]; showSettings=false; draftText=null; selectedMood=null; editingIdx=null;
+  draftPhotos=[]; stashedPhotos=null; dayMode='daily'; closePhoto(); closeCamera(); endTour(false);
   histQuery=''; histMood=null; histTag=null; histFav=false; histDate=null; importPending=null;
   dashboardInsight=null; insightWeekCached=null; summaryText=null; summaryAt=null;
   authMode='login'; animateContent=true;
@@ -1155,6 +1465,7 @@ function renderAuth(){
       <label class="field"><span>Nama pengguna</span><input id="authUser" autocomplete="username" autocapitalize="none" spellcheck="false" required minlength="3" maxlength="24"></label>
       ${reg ? `<label class="field"><span>Nama panggilan</span><input id="authName" autocomplete="nickname" maxlength="30" placeholder="Yang dilihat teman di grup"></label>` : ''}
       <label class="field"><span>Kata sandi</span><input id="authPass" type="password" autocomplete="${reg?'new-password':'current-password'}" required minlength="8"></label>
+      ${reg && authCfg.needsCode ? `<label class="field"><span>Kode pendaftaran</span><input id="authCode" autocomplete="off" autocapitalize="none" spellcheck="false" required placeholder="Dari pemilik server ini"></label>` : ''}
       <p class="summary-err" id="authErr" role="alert" hidden></p>
       <button class="save" type="submit"><span>${reg?'Buat akun':'Masuk'}</span><span class="chev" aria-hidden="true">${ICONS.chev}</span></button>
     </form>
@@ -1417,7 +1728,7 @@ function renderHistoryList(){
               <button class="icon-ghost" onclick="askDeleteNote('${e.date}', ${i})" title="Hapus catatan" aria-label="Hapus catatan">${ICONS.trash}</button>
             </div>`}
           </div>
-          <div class="entry-text">${richText(n.text)}</div>
+          ${n.text ? `<div class="entry-text">${richText(n.text)}</div>` : ''}${renderPhotos(n.photos)}
           ${pendingDelete ? `<div class="confirm-row">
             <span>Hapus catatan ini?</span>
             <button class="btn-ghost-sm danger" onclick="deleteNote('${e.date}', ${i})">Ya, hapus</button>
@@ -1488,7 +1799,7 @@ function renderOnThisDay(){
     ${items.map(({label,entry})=>{ const mi=moodInfo(entry.mood); return `<button class="otd-item" onclick="openDay('${entry.date}')">
       <span class="otd-body">
         <span class="otd-when"><b>${label}</b><span class="dot" style="background:${mi.c}"></span>${fmtDate(entry.date)} · ${mi.l}</span>
-        <span class="otd-text">${esc(notesOf(entry)[0].text)}</span>
+        <span class="otd-text">${esc(notesOf(entry)[0].text || 'Catatan berfoto')}</span>
       </span>
       <span class="otd-go" aria-hidden="true">${ICONS.chev}</span>
     </button>`; }).join('')}
@@ -1518,7 +1829,7 @@ function render(){
   const checkins=rollingCheckins(7);
   const intro = introPlayed ? '' : ' intro'; introPlayed = true;
   const pfresh = popoverFresh; popoverFresh = false;
-  const animate = animateContent && entriesReady; if(animate) animateContent = false;
+  const animate = animateContent && entriesReady && !tourOn; if(animateContent && entriesReady) animateContent = false;
   if(revealObs){ revealObs.disconnect(); revealObs=null; }
   const nToday = todayNotes().length;
   let followCls = ' ghost', followText = '…';           // reserved slot until data is ready
@@ -1571,6 +1882,7 @@ function render(){
   `;
   renderMicButtons();
   if(animate) armReveal();
+  if(tourOn) placeTour();
 }
 initStorage();
 </script>

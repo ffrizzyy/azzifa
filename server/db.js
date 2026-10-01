@@ -40,6 +40,17 @@ db.exec(`
     joined_day TEXT,
     PRIMARY KEY (circle_id, user_id)
   );
+  -- Pictures attached to notes. Kept in the database itself so one file is still the whole
+  -- journal: backing up or moving azzifa.sqlite takes the pictures with it.
+  CREATE TABLE IF NOT EXISTS photos (
+    id TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    mime TEXT NOT NULL,
+    data BLOB NOT NULL,
+    attached INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS photos_by_user ON photos (user_id, attached);
 `);
 
 const columnsOf = (table) => db.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name);

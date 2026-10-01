@@ -1,0 +1,35 @@
+# Fly.io: one small machine and one volume for the database. See DEPLOY.md.
+#
+# Azzifa keeps everything in a single SQLite file, so it must run as exactly ONE machine.
+# Do not scale it out: a second machine would get its own, separate, empty database.
+
+app = "azzifa"            # must be unique across Fly — `fly launch` will offer to change it
+primary_region = "sin"    # Singapore, the closest region to Indonesia
+
+[build]
+
+[env]
+  PORT = "3000"
+  TRUST_PROXY = "1"
+
+[mounts]
+  source = "azzifa_data"
+  destination = "/app/data"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "stop"    # sleeps when nobody is using it; the first visit wakes it
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    method = "GET"
+    path = "/healthz"
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

@@ -48,8 +48,17 @@ function client(localDate = utcDay()) {
     return { status: res.status, data, headers: res.headers };
   };
   call.day = localDate;
+  // For requests that are not JSON in and JSON out (uploading and fetching pictures).
+  call.raw = (url, init = {}) => fetch(BASE + url, { ...init, headers: { 'X-Local-Date': call.day, ...(cookie ? { cookie } : {}), ...(init.headers || {}) } });
   return call;
 }
+// The smallest things the server will take for a JPEG and a PNG: it checks the leading bytes.
+const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01]);
+const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d]);
+const upload = async (c, bytes = JPEG, type = 'image/jpeg') => {
+  const res = await c.raw('/api/photos', { method: 'POST', headers: { 'Content-Type': type }, body: bytes });
+  return { status: res.status, data: await res.json().catch(() => null) };
+};
 const note = (text, extra = {}) => ({ prompt: 'Apa kabar hari ini?', text, at: Date.now(), ...extra });
 const write = (c, date, text = 'catatan uji') => c('PUT', `/api/entries/${date}`, { mood: 'tenang', notes: [note(text)] });
 const register = async (username, localDate) => {
@@ -68,7 +77,7 @@ test('nothing under /api is readable without signing in', async () => {
     assert.equal((await anon('GET', url)).status, 401, url);
   }
   const cfg = (await anon('GET', '/api/auth/config')).data;
-  assert.deepEqual(cfg, { signup: true, firstAccount: true });
+  assert.deepEqual(cfg, { signup: true, firstAccount: true, needsCode: false });
 });
 
 test('responses carry the security headers', async () => {
@@ -229,4 +238,67 @@ test('a circle\'s streak counts the days every member wrote', async () => {
 
   assert.equal((await lala('DELETE', `/api/circles/${view.id}/membership`)).data.length, 0);
   assert.equal((await indah('GET', '/api/circles')).data[0].members.length, 2);
+});
+
+test('Harian is the mode a new account starts in', async () => {
+  const c = await register('mira');
+  assert.equal((await c('GET', '/api/settings')).data.dayMode, 'daily');
+  assert.equal((await c('PUT', '/api/settings', { dayMode: 'checkup' })).data.dayMode, 'checkup');
+  assert.equal((await c('GET', '/api/settings')).data.dayMode, 'checkup');
+});
+
+test('the first-visit tour is offered once per account', async () => {
+  const c = await register('putu');
+  assert.equal((await c('GET', '/api/settings')).data.tourDone, false);
+  assert.equal((await c('PUT', '/api/settings', { tourDone: true })).data.tourDone, true);
+  assert.equal((await c('GET', '/api/settings')).data.tourDone, true);
+  assert.equal((await (await register('qori'))('GET', '/api/settings')).data.tourDone, false, 'it is per account');
+});
+
+test('pictures: upload, attach to a note, and stay private to their owner', async () => {
+  const nina = await register('nina');
+  const omar = await register('omar');
+  assert.equal((await client().raw('/api/photos/' + 'a'.repeat(32))).status, 401);
+
+  assert.equal((await upload(nina, Buffer.from('<svg onload=alert(1)>'), 'image/png')).status, 415, 'the bytes decide, not the label');
+  assert.equal((await upload(nina, JPEG, 'image/svg+xml')).status, 415);
+  const a = (await upload(nina)).data.id;
+  const b = (await upload(nina, PNG, 'image/png')).data.id;
+  assert.match(a, /^[a-f0-9]{32}$/);
+
+  const got = await nina.raw(`/api/photos/${b}`);
+  assert.equal(got.status, 200);
+  assert.equal(got.headers.get('content-type'), 'image/png');
+  assert.match(got.headers.get('cache-control'), /private/);
+  assert.deepEqual(Buffer.from(await got.arrayBuffer()), PNG);
+  assert.equal((await omar.raw(`/api/photos/${a}`)).status, 404, 'someone else\'s picture does not exist for you');
+
+  // A note can be a picture with no words. Ids that are not yours are dropped from it.
+  const theirs = (await upload(omar)).data.id;
+  assert.equal((await nina('PUT', `/api/entries/${today}`, { notes: [note('', { photos: [a, theirs, 'nonsense'] }), note('dengan kata', { photos: [b] })] })).status, 200);
+  let [entry] = (await nina('GET', '/api/entries')).data;
+  assert.deepEqual(entry.notes.map((n) => n.photos), [[a], [b]]);
+  assert.equal(entry.text, 'dengan kata');
+  assert.equal((await omar('PUT', `/api/entries/${today}`, { notes: [note('', { photos: [a] })] })).status, 400, 'a note holding only someone else\'s picture is empty');
+
+  // Dropping a picture from the day removes it; the other one stays.
+  await nina('PUT', `/api/entries/${today}`, { notes: [note('dengan kata', { photos: [b] })] });
+  assert.equal((await nina.raw(`/api/photos/${a}`)).status, 404);
+  assert.equal((await nina.raw(`/api/photos/${b}`)).status, 200);
+
+  // The backup carries the picture, so deleting the day and restoring brings it back.
+  const backup = (await nina('GET', '/api/export.json')).data;
+  assert.equal(backup.photos.length, 1);
+  await nina('DELETE', `/api/entries/${today}`);
+  assert.equal((await nina.raw(`/api/photos/${b}`)).status, 404);
+  assert.equal((await nina('POST', '/api/import', backup)).data.imported, 1);
+  assert.deepEqual(Buffer.from(await (await nina.raw(`/api/photos/${b}`)).arrayBuffer()), PNG);
+  [entry] = (await nina('GET', '/api/entries')).data;
+  assert.deepEqual(entry.notes[0].photos, [b]);
+
+  // Restoring nina's backup into omar's account gives him his own copy of the note, without her picture's id being reusable.
+  await nina('DELETE', `/api/entries/${today}`);
+  assert.equal((await omar('POST', '/api/import', backup)).data.imported, 1);
+  assert.equal((await omar.raw(`/api/photos/${b}`)).status, 200);
+  assert.equal((await nina.raw(`/api/photos/${b}`)).status, 404);
 });
