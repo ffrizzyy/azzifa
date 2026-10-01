@@ -2,12 +2,34 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const db = require('./db');
-const { generateText, ProviderError } = require('./ai');
+const { generateText, providerInfo, ProviderError } = require('./ai');
 const auth = require('./auth');
 const circles = require('./circles');
+const { isRealDay, shiftDay, mondayOf, clientDay } = require('./day');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+app.disable('x-powered-by');
+
+// A private journal should not be framed, sniffed, or allowed to load code from elsewhere.
+// The page is one file with inline script and styles, hence 'unsafe-inline'; everything else
+// is limited to this server plus the Google Fonts stylesheet and font files.
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Content-Security-Policy', [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    'font-src https://fonts.gstatic.com',
+    "img-src 'self' data:",
+    "connect-src 'self'",
+    "frame-ancestors 'none'",
+    "base-uri 'none'",
+    "form-action 'self'",
+  ].join('; '));
+  next();
+});
 
 // A restored backup can be far larger than any single request the app itself makes,
 // so /api/import brings its own body parser with a higher limit.
@@ -21,6 +43,8 @@ app.get('/healthz', (req, res) => res.json({ ok: true }));
 // Everything under /api belongs to the signed-in user, except signing in itself.
 app.use('/api/auth', auth.router);
 app.use('/api', auth.requireUser);
+// "Today" is the caller's own date, not the server's (see day.js).
+app.use('/api', (req, res, next) => { req.today = clientDay(req); next(); });
 app.get('/api/me', (req, res) => res.json(req.user));
 app.use('/api/circles', circles.router);
 
@@ -42,10 +66,34 @@ function rowToEntry(row) {
 }
 
 // ---------- Entries ----------
+const MOOD_KEYS = ['berat', 'cemas', 'biasa', 'tenang', 'senang'];
+const MAX_NOTES_PER_DAY = 50;
 const upsertEntry = db.prepare(`
   INSERT INTO entries (user_id, date, mood, prompt, text, notes, day_summary, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   ON CONFLICT(user_id, date) DO UPDATE SET mood=excluded.mood, prompt=excluded.prompt, text=excluded.text, notes=excluded.notes, day_summary=excluded.day_summary, updated_at=excluded.updated_at
 `);
+
+/**
+ * Whatever a client or a backup file sends for one day, reduced to a row that is safe to store
+ * and to render: a real date, a known mood, and notes holding only the fields the app uses.
+ * Returns null when there is nothing worth saving (bad date, or no note with any text).
+ */
+function entryRow(userId, raw) {
+  if (!raw || !isRealDay(raw.date)) return null;
+  const source = Array.isArray(raw.notes) && raw.notes.length ? raw.notes : [{ prompt: raw.prompt, text: raw.text, at: raw.updatedAt }];
+  const notes = source
+    .filter((n) => n && typeof n.text === 'string' && n.text.trim())
+    .slice(0, MAX_NOTES_PER_DAY)
+    .map((n) => ({ prompt: typeof n.prompt === 'string' ? n.prompt.slice(0, 300) : '', text: n.text, at: Number(n.at) || Date.now(), ...(n.fav ? { fav: true } : {}) }));
+  if (notes.length === 0) return null;
+  const summary = raw.daySummary && typeof raw.daySummary.text === 'string'
+    ? JSON.stringify({ text: raw.daySummary.text, at: Number(raw.daySummary.at) || Date.now() })
+    : null;
+  return [
+    userId, raw.date, MOOD_KEYS.includes(raw.mood) ? raw.mood : 'biasa', notes[0].prompt,
+    notes.map((n) => n.text).join('\n\n'), JSON.stringify(notes), summary, Number(raw.updatedAt) || Date.now(),
+  ];
+}
 
 app.get('/api/entries', (req, res) => {
   // Enough for several years of daily entries — "on this day" needs to see that far back.
@@ -54,16 +102,12 @@ app.get('/api/entries', (req, res) => {
 });
 
 app.put('/api/entries/:date', (req, res) => {
-  const { date } = req.params;
-  const { mood, prompt, text, notes, daySummary } = req.body || {};
-  if (!text || typeof text !== 'string' || !text.trim()) {
-    return res.status(400).json({ error: 'text wajib diisi' });
+  if (!isRealDay(req.params.date)) {
+    return res.status(400).json({ error: 'Tanggalnya belum dikenali. Coba muat ulang halamannya, ya.' });
   }
-  const notesJson = Array.isArray(notes) && notes.length
-    ? JSON.stringify(notes)
-    : JSON.stringify([{ prompt: prompt || '', text, at: Date.now() }]);
-  const daySummaryJson = daySummary ? JSON.stringify(daySummary) : null;
-  upsertEntry.run(req.user.id, date, mood || 'biasa', prompt || '', text, notesJson, daySummaryJson, Date.now());
+  const row = entryRow(req.user.id, { ...(req.body || {}), date: req.params.date, updatedAt: Date.now() });
+  if (!row) return res.status(400).json({ error: 'Tulis dulu sedikit, ya. Catatan kosong belum bisa disimpan.' });
+  upsertEntry.run(...row);
   res.json({ ok: true });
 });
 
@@ -88,37 +132,37 @@ function readSettings(userId) {
     dayMode: s.dayMode === 'daily' ? 'daily' : 'checkup',
   };
 }
+// `ai` is not a setting the user owns: it tells the page whether the AI cards can work at all,
+// and which provider's name belongs in the "your notes are sent to…" line.
+const settingsFor = (userId) => ({ ...readSettings(userId), ai: providerInfo() });
 const upsertSetting = db.prepare(`
   INSERT INTO settings (user_id, key, value) VALUES (?, ?, ?)
   ON CONFLICT(user_id, key) DO UPDATE SET value=excluded.value
 `);
 
-app.get('/api/settings', (req, res) => res.json(readSettings(req.user.id)));
+app.get('/api/settings', (req, res) => res.json(settingsFor(req.user.id)));
 
 app.put('/api/settings', (req, res) => {
   const patch = req.body || {};
   const tx = db.transaction((pairs) => { pairs.forEach(([k, v]) => upsertSetting.run(req.user.id, k, v)); });
   const pairs = [];
   if ('reminderEnabled' in patch) pairs.push(['reminderEnabled', patch.reminderEnabled ? '1' : '0']);
-  if ('reminderTime' in patch) pairs.push(['reminderTime', String(patch.reminderTime)]);
-  if ('insightWeek' in patch) pairs.push(['insightWeek', String(patch.insightWeek)]);
-  if ('insightText' in patch) pairs.push(['insightText', String(patch.insightText)]);
-  if ('summaryText' in patch) pairs.push(['summaryText', String(patch.summaryText)]);
-  if ('summaryAt' in patch) pairs.push(['summaryAt', String(patch.summaryAt)]);
-  if ('summaryRange' in patch) pairs.push(['summaryRange', String(patch.summaryRange)]);
+  if ('reminderTime' in patch && /^\d{2}:\d{2}$/.test(String(patch.reminderTime))) pairs.push(['reminderTime', String(patch.reminderTime)]);
+  if ('summaryRange' in patch) pairs.push(['summaryRange', Number(patch.summaryRange) === 30 ? '30' : '7']);
   if ('dayMode' in patch) pairs.push(['dayMode', patch.dayMode === 'daily' ? 'daily' : 'checkup']);
   tx(pairs);
-  res.json(readSettings(req.user.id));
+  res.json(settingsFor(req.user.id));
 });
 
 // ---------- Export ----------
 app.get('/api/export.txt', (req, res) => {
   const rows = db.prepare('SELECT * FROM entries WHERE user_id = ? ORDER BY date ASC').all(req.user.id);
-  const fmt = (d) => new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+  const fmt = (d, timeZone) => new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone });
+  const fmtDay = (day) => fmt(`${day}T00:00:00Z`, 'UTC'); // a calendar date, so no timezone shift
   const totalNotes = rows.reduce((n, r) => n + parseNotes(r).length, 0);
-  let out = `Azzifa — Catatan Refleksi\nDiekspor: ${fmt(new Date())}\nTotal catatan: ${totalNotes}\n\n`;
+  let out = `Azzifa — Catatan Refleksi\nDiekspor: ${fmtDay(req.today)}\nTotal catatan: ${totalNotes}\n\n`;
   rows.forEach((r) => {
-    out += `${fmt(r.date)} — Mood: ${r.mood}\n`;
+    out += `${fmtDay(r.date)} — Mood: ${r.mood}\n`;
     parseNotes(r).forEach((n) => { out += `Pertanyaan: ${n.prompt}\n${n.text}\n\n`; });
   });
   const settings = readSettings(req.user.id);
@@ -134,11 +178,9 @@ app.get('/api/export.txt', (req, res) => {
 // Unlike export.txt this round-trips: every entry with its notes, favourites and day summary.
 app.get('/api/export.json', (req, res) => {
   const rows = db.prepare('SELECT * FROM entries WHERE user_id = ? ORDER BY date ASC').all(req.user.id);
-  res.setHeader('Content-Disposition', `attachment; filename="azzifa-cadangan-${new Date().toISOString().slice(0, 10)}.json"`);
+  res.setHeader('Content-Disposition', `attachment; filename="azzifa-cadangan-${req.today}.json"`);
   res.json({ app: 'azzifa', version: 1, exportedAt: Date.now(), entries: rows.map(rowToEntry) });
 });
-
-const MOOD_KEYS = ['berat', 'cemas', 'biasa', 'tenang', 'senang'];
 
 // Restores a backup into the signed-in user's journal. A date already there is replaced by the
 // backup's version; dates the backup does not mention are left alone. Malformed entries are
@@ -146,108 +188,114 @@ const MOOD_KEYS = ['berat', 'cemas', 'biasa', 'tenang', 'senang'];
 app.post('/api/import', express.json({ limit: '25mb' }), (req, res) => {
   const list = Array.isArray(req.body) ? req.body : req.body && req.body.entries;
   if (!Array.isArray(list) || list.length === 0) {
-    return res.status(400).json({ error: 'File cadangan tidak berisi catatan' });
+    return res.status(400).json({ error: 'File cadangannya belum berisi catatan.' });
   }
-  const clean = [];
-  list.forEach((raw) => {
-    if (!raw || typeof raw.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(raw.date)) return;
-    const source = Array.isArray(raw.notes) && raw.notes.length ? raw.notes : [{ prompt: raw.prompt, text: raw.text, at: raw.updatedAt }];
-    const notes = source
-      .filter((n) => n && typeof n.text === 'string' && n.text.trim())
-      .map((n) => ({ prompt: typeof n.prompt === 'string' ? n.prompt : '', text: n.text, at: Number(n.at) || Date.now(), ...(n.fav ? { fav: true } : {}) }));
-    if (notes.length === 0) return;
-    const ds = raw.daySummary && typeof raw.daySummary.text === 'string'
-      ? JSON.stringify({ text: raw.daySummary.text, at: Number(raw.daySummary.at) || Date.now() })
-      : null;
-    clean.push([
-      req.user.id, raw.date, MOOD_KEYS.includes(raw.mood) ? raw.mood : 'biasa', notes[0].prompt,
-      notes.map((n) => n.text).join('\n\n'), JSON.stringify(notes), ds, Number(raw.updatedAt) || Date.now(),
-    ]);
-  });
+  const clean = list.map((raw) => entryRow(req.user.id, raw)).filter(Boolean);
   if (clean.length === 0) {
-    return res.status(400).json({ error: 'Tidak ada catatan yang valid di file cadangan' });
+    return res.status(400).json({ error: 'Belum ada catatan yang bisa dibaca dari file cadangan ini.' });
   }
   db.transaction((rows) => { rows.forEach((r) => upsertEntry.run(...r)); })(clean);
   res.json({ ok: true, imported: clean.length, skipped: list.length - clean.length });
 });
 
-// ---------- Weekly AI pattern observation (Dashboard) ----------
-function currentWeekKey() {
-  const d = new Date();
-  const day = (d.getDay() + 6) % 7; // Monday = 0
-  d.setDate(d.getDate() - day);
-  return d.toISOString().slice(0, 10);
+// ---------- AI ----------
+// Every account shares the server owner's API key, so each one gets a daily allowance.
+const AI_DAILY_LIMIT = Number(process.env.AI_DAILY_LIMIT) || 30;
+const aiCalls = auth.limiter(AI_DAILY_LIMIT, 24 * 60 * 60 * 1000);
+
+/** Runs one AI request for the signed-in user and answers with `{text, ...}` or a kind error. */
+async function answerWithAi(req, res, prompt, maxTokens, onText) {
+  const key = `${req.user.id}|${req.today}`;
+  if (aiCalls.blocked(key)) {
+    return res.status(429).json({ error: 'Hari ini AI sudah banyak membantu. Kita lanjut lagi besok, ya.' });
+  }
+  try {
+    const text = await generateText(prompt, { maxTokens });
+    aiCalls.hit(key);
+    res.json(onText(text));
+  } catch (e) {
+    if (!(e instanceof ProviderError)) throw e;
+    // The technical reason is for whoever runs the server, not for the person writing.
+    console.error('AI:', e.message);
+    if (e.kind === 'unconfigured') {
+      return res.status(501).json({ error: 'Fitur AI belum diaktifkan di server ini. Catatanmu tetap tersimpan seperti biasa.' });
+    }
+    if (e.kind === 'refusal') {
+      return res.status(422).json({ error: 'AI belum bisa merangkum catatan ini. Tidak apa-apa, catatanmu tetap aman.' });
+    }
+    res.status(502).json({ error: 'AI sedang sulit dihubungi. Coba lagi sebentar lagi, ya.' });
+  }
 }
 
-app.post('/api/insight', async (req, res) => {
+// Weekly pattern observation (Dashboard)
+app.post('/api/insight', auth.wrap(async (req, res) => {
   const rows = db.prepare('SELECT * FROM entries WHERE user_id = ? ORDER BY date DESC LIMIT 14').all(req.user.id);
   const totalNotes = rows.reduce((n, r) => n + parseNotes(r).length, 0);
   if (totalNotes < 3) {
-    return res.status(400).json({ error: 'Minimal 3 catatan diperlukan sebelum pengamatan bisa dibuat' });
+    return res.status(400).json({ error: 'Tulis minimal 3 catatan dulu, ya. Setelah itu pengamatan bisa dibuat.' });
   }
-  const material = rows.map((r) => `${r.date} (${r.mood}): ${parseNotes(r).map((n) => n.text).join(' / ')}`).join('\n');
-  const prompt = `Berdasarkan catatan jurnal berikut, tulis satu pengamatan pola singkat (2-3 kalimat, bahasa Indonesia, nada suportif bukan menghakimi) tentang mood orang ini akhir-akhir ini. Catatan:\n${material}`;
-  try {
-    const text = await generateText(prompt, { maxTokens: 300 });
-    const week = currentWeekKey();
+  const material = rows.map((r) => `${r.date} (${r.mood}): ${parseNotes(r).map((n) => n.text).join(' / ')}`).join('\n').slice(0, 9000);
+  const prompt = `Berdasarkan catatan jurnal berikut, tulis satu pengamatan pola singkat (2-3 kalimat, bahasa Indonesia, nada hangat dan suportif, bukan menghakimi) tentang mood orang ini akhir-akhir ini. Jangan mendiagnosis, jangan memberi saran medis. Tanpa markdown. Catatan:\n${material}`;
+  await answerWithAi(req, res, prompt, 300, (text) => {
+    const week = mondayOf(req.today);
     upsertSetting.run(req.user.id, 'insightWeek', week);
     upsertSetting.run(req.user.id, 'insightText', text);
-    res.json({ week, text });
-  } catch (e) {
-    if (e instanceof ProviderError) return res.status(501).json({ error: e.message });
-    console.error(e);
-    res.status(502).json({ error: 'Gagal menghubungi AI' });
-  }
-});
+    return { week, text };
+  });
+}));
 
-// ---------- Activity summary over a date range (Riwayat) ----------
-app.post('/api/summary', async (req, res) => {
+// Activity summary over a date range (Riwayat)
+app.post('/api/summary', auth.wrap(async (req, res) => {
   const range = req.body && Number(req.body.range) === 30 ? 30 : 7;
-  const since = new Date();
-  since.setDate(since.getDate() - (range - 1));
-  const sinceStr = since.toISOString().slice(0, 10);
-  const rows = db.prepare('SELECT * FROM entries WHERE user_id = ? AND date >= ? ORDER BY date ASC').all(req.user.id, sinceStr);
+  const since = shiftDay(req.today, -(range - 1));
+  const rows = db.prepare('SELECT * FROM entries WHERE user_id = ? AND date >= ? ORDER BY date ASC').all(req.user.id, since);
   if (rows.length === 0) {
-    return res.status(400).json({ error: 'Belum ada catatan di rentang ini. Coba pilih rentang yang lebih panjang.' });
+    return res.status(400).json({ error: 'Belum ada catatan di rentang ini. Coba pilih rentang yang lebih panjang, ya.' });
   }
   const material = rows.map((r) => {
     const notes = parseNotes(r).map((n) => `- Pertanyaan: ${n.prompt}\n  Jawaban: ${String(n.text).slice(0, 600)}`).join('\n');
     return `${r.date} (mood: ${r.mood})\n${notes}`;
   }).join('\n\n').slice(0, 9000);
   const prompt = `Kamu merangkum jurnal harian seseorang dalam bahasa Indonesia yang natural dan hangat. Tugasmu: rangkum KEGIATAN sehari-hari dari catatan di bawah.\nAturan:\n1. Tulis satu baris untuk setiap tanggal yang punya catatan, diawali tanggal singkat (contoh: "Sen 28 Sep:"), lalu satu kalimat tentang apa yang dikerjakan atau dialami hari itu.\n2. Setelah itu tulis satu paragraf pendek (2-3 kalimat) diawali "Gambaran umum:" tentang pola kegiatan atau hal yang sering muncul.\n3. Hanya pakai hal yang benar-benar tertulis. Jangan mengarang, jangan mendiagnosis, jangan memberi saran medis.\n4. Tanpa markdown, tanpa tanda bintang, tanpa judul.\n\nCatatan:\n${material}`;
-  try {
-    const text = await generateText(prompt, { maxTokens: 500 });
+  await answerWithAi(req, res, prompt, 500, (text) => {
     const at = Date.now();
     upsertSetting.run(req.user.id, 'summaryText', text);
     upsertSetting.run(req.user.id, 'summaryAt', String(at));
     upsertSetting.run(req.user.id, 'summaryRange', String(range));
-    res.json({ text, at });
-  } catch (e) {
-    if (e instanceof ProviderError) return res.status(501).json({ error: e.message });
-    console.error(e);
-    res.status(502).json({ error: 'Gagal membuat rangkuman. Coba lagi sebentar lagi.' });
-  }
-});
+    return { text, at };
+  });
+}));
 
-// ---------- Same-day AI recap ("Harian" mode, Hari ini tab) ----------
-// Distinct from /api/summary: this covers exactly one date and lives on that entry row
-// (day_summary column), not in the settings table, so it never clashes with the 7/30-day summary.
-app.post('/api/entries/:date/day-summary', async (req, res) => {
+// Same-day recap ("Harian" mode, Hari ini tab). Distinct from /api/summary: this covers exactly
+// one date and lives on that entry row (day_summary column), not in the settings table, so it
+// never clashes with the 7/30-day summary.
+app.post('/api/entries/:date/day-summary', auth.wrap(async (req, res) => {
   const { date } = req.params;
   const row = db.prepare('SELECT * FROM entries WHERE user_id = ? AND date = ?').get(req.user.id, date);
-  if (!row) return res.status(400).json({ error: 'Belum ada catatan hari ini.' });
-  const material = parseNotes(row).map((n) => `- ${n.prompt}\n  ${n.text}`).join('\n');
+  if (!row) return res.status(400).json({ error: 'Belum ada catatan hari ini. Tulis dulu sedikit, ya.' });
+  const material = parseNotes(row).map((n) => `- ${n.prompt}\n  ${n.text}`).join('\n').slice(0, 9000);
   const prompt = `Rangkum kegiatan HARI INI saja (bukan beberapa hari) dalam 2-4 kalimat yang mengalir seperti cerita singkat, bahasa Indonesia yang natural dan hangat. Hanya pakai hal yang benar-benar tertulis di catatan, jangan mengarang, jangan mendiagnosis, jangan memberi saran medis. Tanpa markdown, tanpa judul.\n\nCatatan hari ini:\n${material}`;
-  try {
-    const text = await generateText(prompt, { maxTokens: 300 });
+  await answerWithAi(req, res, prompt, 300, (text) => {
     const at = Date.now();
     db.prepare('UPDATE entries SET day_summary = ? WHERE user_id = ? AND date = ?').run(JSON.stringify({ text, at }), req.user.id, date);
-    res.json({ text, at });
-  } catch (e) {
-    if (e instanceof ProviderError) return res.status(501).json({ error: e.message });
-    console.error(e);
-    res.status(502).json({ error: 'Gagal membuat rangkuman. Coba lagi sebentar lagi.' });
+    return { text, at };
+  });
+}));
+
+// ---------- Fallbacks ----------
+app.use('/api', (req, res) => res.status(404).json({ error: 'Alamat itu tidak ada di Azzifa.' }));
+
+// Every failure answers in JSON the page can show, in the app's own voice.
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'Kirimannya terlalu besar untuk diterima sekaligus.' });
   }
+  if (err.type === 'entity.parse.failed') {
+    return res.status(400).json({ error: 'Kirimannya tidak terbaca. Coba ulangi sekali lagi, ya.' });
+  }
+  console.error(err);
+  res.status(500).json({ error: 'Ada yang belum beres di server. Catatanmu aman, coba lagi sebentar lagi, ya.' });
 });
 
 app.listen(PORT, '0.0.0.0', () => {

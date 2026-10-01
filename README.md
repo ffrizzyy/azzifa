@@ -17,7 +17,7 @@ Dua orang atau lebih bisa menjaga streak bersama. Buat grup di Dashboard, bagika
 - Hari ini yang belum lengkap tidak langsung memutus streak; streak baru putus kalau satu hari penuh terlewat.
 - Hari sebelum seseorang bergabung tidak dihitung untuk orang itu, dan streak baru mulai berjalan setelah grup punya minimal dua anggota.
 - Yang terlihat anggota lain hanya **nama panggilan** dan **sudah atau belum menulis hari ini**. Isi catatan dan mood tidak pernah dibagikan.
-- Pergantian hari memakai UTC (sama dengan bagian aplikasi lainnya), jadi semua anggota grup berbagi batas hari yang sama. Di WIB, hari berganti pukul 07.00.
+- Pergantian hari mengikuti **tanggal lokal** tiap anggota (tengah malam di perangkatnya), sama seperti bagian aplikasi lainnya. Anggota di zona waktu yang sama berbagi batas hari yang sama; kalau zona waktunya berbeda, masing-masing dihitung menurut harinya sendiri.
 
 ## Menjalankan lokal
 
@@ -29,7 +29,22 @@ npm start
 
 Buka `http://localhost:3000`.
 
-Kedua fitur AI (pengamatan mingguan di Dashboard, rangkuman kegiatan di Riwayat) bersifat opsional — tanpa `.env` diisi, seluruh aplikasi tetap jalan normal, dua kotak itu saja yang bilang belum dikonfigurasi (bukan error diam-diam).
+Fitur AI (pengamatan mingguan di Dashboard, rangkuman kegiatan di Riwayat, rangkuman harian di mode Harian) bersifat opsional — tanpa kunci API di `.env`, seluruh aplikasi tetap jalan normal, dan kotak-kotak itu menjelaskan sendiri bahwa AI belum diaktifkan (tanpa tombol yang pasti gagal, tanpa pesan error teknis).
+
+```bash
+npm test   # menjalankan server sungguhan dengan database sementara, lalu mengujinya lewat HTTP
+```
+
+### Variabel lingkungan
+
+| Variabel | Default | Fungsi |
+|---|---|---|
+| `PORT` | `3000` | Port server |
+| `DATA_DIR` | `./data` | Folder tempat `azzifa.sqlite` disimpan. Arahkan ke disk persisten saat deploy |
+| `ALLOW_SIGNUP` | `true` | `false` menutup pendaftaran akun baru (akun pertama selalu bisa dibuat) |
+| `SIGNUPS_PER_HOUR` | `10` | Batas pembuatan akun per jam dari satu alamat IP |
+| `AI_DAILY_LIMIT` | `30` | Batas permintaan AI per akun per hari, karena semua akun memakai kunci API yang sama |
+| `AI_PROVIDER` dan kuncinya | `anthropic` | Lihat bagian di bawah |
 
 ## Pakai AI dari provider lain
 
@@ -59,7 +74,7 @@ cp .env.example .env
 npm start   # pakai pm2 atau systemd supaya tetap jalan setelah SSH ditutup
 ```
 
-**Platform dengan disk persisten (Render, Railway, Fly.io, dll.):** set environment variables lewat dashboard platform tersebut, lalu pastikan folder `data/` dipetakan ke volume/disk persisten — bukan sekadar filesystem sementara, atau riwayat jurnal akan hilang saat container di-restart.
+**Platform dengan disk persisten (Render, Railway, Fly.io, dll.):** set environment variables lewat dashboard platform tersebut, lalu pastikan folder `data/` dipetakan ke volume/disk persisten (atau set `DATA_DIR` ke lokasi disk itu) — bukan sekadar filesystem sementara, atau riwayat jurnal akan hilang saat container di-restart.
 
 **Yang TIDAK akan berfungsi:** platform serverless/edge murni (Vercel Functions, Netlify Functions, Cloudflare Workers). Azzifa memakai file SQLite di disk, dan platform-platform itu tidak punya filesystem persisten antar request. Kalau memang butuh serverless, itu berarti mengganti `server/db.js` ke database terkelola (Postgres, Turso, dsb.) — perubahan arsitektur, bukan sekadar konfigurasi.
 
@@ -72,6 +87,8 @@ Ada endpoint `GET /healthz` yang mengembalikan `{ok:true}` untuk health check pl
 - **AI** (`server/ai.js`) — satu fungsi `generateText(prompt)` yang menyembunyikan provider mana yang sebenarnya dipanggil.
 - **Akun** (`server/auth.js`) — daftar, masuk, keluar. Kata sandi di-hash dengan scrypt + salt per akun; sesi berupa token acak di cookie `HttpOnly`, dan database hanya menyimpan hash SHA-256 dari token itu.
 - **Streak bareng** (`server/circles.js`) — grup, kode undangan, dan perhitungan streak grup.
+- **Tanggal** (`server/day.js`) — "hari ini" adalah tanggal lokal penulisnya, bukan jam server. Browser mengirimnya di header `X-Local-Date` pada setiap permintaan; server hanya menerimanya kalau selisihnya paling banyak satu hari dari tanggal UTC server (tidak ada zona waktu yang lebih jauh dari itu), selain itu server memakai tanggal UTC-nya sendiri.
+- **Keamanan dasar** — semua masukan catatan dibersihkan di server sebelum disimpan (tanggal harus nyata, mood harus dikenal, catatan hanya membawa field yang dipakai aplikasi), respons membawa `Content-Security-Policy`, `X-Content-Type-Options`, dan `Referrer-Policy`, dan semua error dijawab dalam JSON.
 - **Database** (`server/db.js`) — SQLite lewat `better-sqlite3`, satu file di `data/azzifa.sqlite`. Skema di-migrasi otomatis: database dari versi satu-pengguna dibangun ulang dengan kolom `user_id`, dan seluruh catatan lamanya diwarisi oleh **akun pertama yang mendaftar**.
 
 ```
@@ -84,8 +101,10 @@ azzifa-app/
 │   ├── index.js    # Express app + route jurnal, pengaturan, ekspor, AI
 │   ├── auth.js     # akun + sesi
 │   ├── circles.js  # streak bareng
+│   ├── day.js      # tanggal lokal penulis
 │   ├── ai.js       # abstraksi provider AI
 │   └── db.js       # koneksi SQLite + skema tabel + migrasi
+├── test/           # npm test
 ├── public/
 │   └── index.html  # seluruh frontend
 └── data/           # dibuat otomatis, isi: azzifa.sqlite (jangan di-commit)
@@ -109,10 +128,10 @@ Semua route `/api/*` selain `/api/auth/*` butuh sesi masuk (cookie) dan hanya me
 | GET | `/api/entries` | Ambil 2000 hari terbaru, masing-masing dengan array `notes` |
 | GET | `/api/export.json` | Unduh cadangan lengkap (catatan, favorit, rangkuman harian) |
 | POST | `/api/import` | Pulihkan cadangan `{entries:[...]}`. Tanggal yang sama ditimpa, tanggal lain dibiarkan |
-| PUT | `/api/entries/:date` | Simpan/tambah catatan tanggal tsb (`{mood, prompt, text, notes, daySummary}`) |
+| PUT | `/api/entries/:date` | Simpan seluruh catatan tanggal tsb (`{mood, notes, daySummary}`). `400` kalau tanggalnya tidak nyata atau tidak ada catatan berisi teks |
 | DELETE | `/api/entries/:date` | Hapus seluruh catatan tanggal tsb |
-| GET | `/api/settings` | Ambil pengaturan pengingat + cache pengamatan/rangkuman |
-| PUT | `/api/settings` | Perbarui sebagian pengaturan |
+| GET | `/api/settings` | Pengaturan pengingat, cache pengamatan/rangkuman, dan `ai: {configured, label}` |
+| PUT | `/api/settings` | Perbarui `reminderEnabled`, `reminderTime`, `summaryRange`, `dayMode`. Kunci lain diabaikan |
 | GET | `/api/export.txt` | Unduh seluruh riwayat + rangkuman (kalau ada) sebagai teks polos |
 | POST | `/api/insight` | Pengamatan pola mingguan dari 14 catatan terakhir (butuh AI provider terkonfigurasi) |
 | POST | `/api/summary` | Rangkuman kegiatan `{range: 7\|30}` hari terakhir (butuh AI provider terkonfigurasi) |
@@ -129,5 +148,15 @@ Satu hari kini bisa punya beberapa catatan terpisah (kolom `notes`, JSON array `
 - **Streak bareng hanya antar akun di server yang sama.** Dua instalasi Azzifa yang terpisah tidak bisa saling terhubung.
 - **Kunci AI dipakai bersama.** Semua akun memakai provider AI yang sama dari `.env`, jadi biayanya ditanggung pemilik server.
 - **Input suara** pakai Web Speech API bawaan browser — tidak jalan di Firefox, dan tetap butuh koneksi internet meski datanya sendiri sudah lokal.
-- **Pengingat** cuma aktif kalau tab browser terbuka (pakai Notification API bawaan browser). Bubble di dalam aplikasi tetap jadi jaring pengaman kalau notifikasi tidak didukung/ditolak.
-- **Cara saya menguji ini**, karena sandbox saya tidak punya akses internet untuk `npm install`: saya jalankan JavaScript frontend-nya langsung di Node lewat DOM tiruan sambil mem-palsukan seluruh backend (`fetch` yang meniru setiap route), lalu simulasikan skenario pakai sungguhan — simpan beberapa catatan dalam satu hari, minta pengamatan AI, minta rangkuman, ganti provider AI, matikan koneksi ke server. Untuk lapisan database, saya ambil string SQL yang persis sama dari `db.js`/`index.js` dan jalankan langsung di SQLite asli (lewat Python) untuk membuktikan skema, upsert, dan migrasi kolom `notes` benar. Catatan itu berlaku untuk versi awal. Versi dengan akun, streak bareng, kalender, pencarian, tag, favorit, dan cadangan sudah dijalankan sungguhan (`npm install` + server asli + SQLite asli) dan diuji lewat Chrome headless: migrasi dari database satu-pengguna, isolasi jurnal antar akun, aturan streak grup, serta alur masuk dan ketiga tab di layar ponsel dan desktop. Yang **belum** diuji: fitur AI dengan kunci API sungguhan, input suara, notifikasi pengingat, dan deploy lewat Docker.
+- **Pengingat** cuma aktif kalau tab browser masih terbuka (pakai Notification API bawaan browser), dan muncul saat tab itu sedang tidak dilihat. Sapaan di dalam aplikasi tetap jadi jaring pengaman kalau notifikasi tidak didukung/ditolak.
+- **Catatan lama memakai tanggal UTC.** Versi awal menentukan "hari ini" dengan UTC, jadi catatan yang ditulis sebelum pukul 07.00 WIB tersimpan di tanggal sehari sebelumnya. Catatan baru memakai tanggal lokal; catatan lama tidak digeser otomatis.
+- **Satu hari disimpan utuh.** Kalau jurnal yang sama dibuka di dua perangkat sekaligus dan keduanya menyimpan catatan untuk hari yang sama, simpanan terakhir yang menang.
+- **Draf tersimpan di browser.** Tulisan yang belum disimpan diingat di perangkat itu (bukan di server) sampai disimpan atau sampai keluar akun.
+
+## Pengujian
+
+`npm test` menjalankan server sungguhan dengan database sementara dan mengujinya lewat HTTP: akun dan sesi, isolasi jurnal antar akun, validasi catatan, tanggal lokal, cadangan dan pemulihan, aturan streak grup, jawaban saat AI belum diaktifkan, dan header keamanan.
+
+Di luar itu, halaman sudah dijalankan di Chrome headless (ponsel dan desktop, terang dan gelap) untuk memeriksa alur daftar/masuk, ketiga tab, pemulihan draf, perubahan mood, tanggal di beberapa zona waktu, dan bahwa tidak ada pelanggaran Content-Security-Policy.
+
+Yang **belum** diuji: fitur AI dengan kunci API sungguhan, input suara, notifikasi pengingat, dan deploy lewat Docker.

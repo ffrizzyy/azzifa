@@ -1,54 +1,84 @@
 // One function, generateText(prompt), that hides which AI provider is actually being called.
 // Swapping providers is a .env change (AI_PROVIDER=...), not a code change.
-class ProviderError extends Error {}
+
+// `kind` tells the route what to say to the person using the app; `message` is the technical
+// detail for the server log and is never shown to them.
+//   unconfigured — the server owner has not set a provider up
+//   refusal      — the provider declined to answer
+//   upstream     — the provider failed, timed out, or answered with something unusable
+class ProviderError extends Error {
+  constructor(message, kind = 'upstream') {
+    super(message);
+    this.kind = kind;
+  }
+}
+
+const TIMEOUT_MS = 45000;
+// The current Claude models think before they answer, and that thinking is counted against
+// max_tokens. A cap sized for the answer alone can be used up before any text is written, so
+// the request gets generous headroom; the prompts themselves keep the answer short.
+const ANTHROPIC_MIN_TOKENS = 4000;
+
+const providerName = () => (process.env.AI_PROVIDER || 'anthropic').toLowerCase();
+
+/** What the app can tell people about the AI behind it, without making a request. */
+function providerInfo() {
+  const provider = providerName();
+  if (provider === 'anthropic') return { configured: !!process.env.ANTHROPIC_API_KEY, label: 'Claude' };
+  if (provider === 'openai') return { configured: !!process.env.OPENAI_API_KEY, label: 'OpenAI' };
+  if (provider === 'openai_compatible') return { configured: !!(process.env.AI_BASE_URL && process.env.AI_MODEL), label: 'penyedia AI' };
+  return { configured: false, label: 'penyedia AI' };
+}
+
+// A provider that never answers must not leave the request hanging forever.
+async function post(url, headers, body) {
+  try {
+    return await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...headers },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+  } catch (e) {
+    throw new ProviderError(`${url} tidak bisa dihubungi: ${e.message}`);
+  }
+}
 
 async function callAnthropic(prompt, maxTokens) {
   const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) throw new ProviderError('ANTHROPIC_API_KEY belum diatur di server/.env');
+  if (!key) throw new ProviderError('ANTHROPIC_API_KEY belum diatur di .env', 'unconfigured');
   const model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5';
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': key,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: maxTokens,
-      messages: [{ role: 'user', content: prompt }],
-    }),
+  const resp = await post('https://api.anthropic.com/v1/messages', {
+    'x-api-key': key,
+    'anthropic-version': '2023-06-01',
+  }, {
+    model,
+    max_tokens: Math.max(maxTokens, ANTHROPIC_MIN_TOKENS),
+    messages: [{ role: 'user', content: prompt }],
   });
   if (!resp.ok) {
     const body = await resp.text().catch(() => '');
-    console.error('Anthropic API error:', resp.status, body);
-    throw new ProviderError(`Anthropic API menolak permintaan (${resp.status}) — cek ANTHROPIC_API_KEY`);
+    throw new ProviderError(`Anthropic API menolak permintaan (${resp.status}) — cek ANTHROPIC_API_KEY dan ANTHROPIC_MODEL. ${body}`);
   }
   const data = await resp.json();
-  const text = (data.content || []).map((b) => b.text || '').join('\n').trim();
-  if (!text) throw new ProviderError('Anthropic API mengembalikan respons kosong');
+  if (data.stop_reason === 'refusal') throw new ProviderError('Anthropic API menolak menjawab (refusal)', 'refusal');
+  // Only text blocks are the answer; thinking blocks come back in the same list.
+  const text = (data.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim();
+  if (!text) throw new ProviderError(`Anthropic API mengembalikan respons tanpa teks (stop_reason: ${data.stop_reason})`);
   return text;
 }
 
 // Shared by OpenAI itself and anything that speaks the same /chat/completions shape
 // (Groq, Together, Mistral, a local Ollama behind an OpenAI-compatible shim, etc.)
 async function callOpenAiShaped(url, key, model, prompt, maxTokens) {
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(key ? { Authorization: `Bearer ${key}` } : {}),
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: maxTokens,
-      messages: [{ role: 'user', content: prompt }],
-    }),
+  const resp = await post(url, key ? { Authorization: `Bearer ${key}` } : {}, {
+    model,
+    max_tokens: maxTokens,
+    messages: [{ role: 'user', content: prompt }],
   });
   if (!resp.ok) {
     const body = await resp.text().catch(() => '');
-    console.error('AI provider error:', url, resp.status, body);
-    throw new ProviderError(`API di ${url} menolak permintaan (${resp.status})`);
+    throw new ProviderError(`API di ${url} menolak permintaan (${resp.status}). ${body}`);
   }
   const data = await resp.json();
   const text = data.choices?.[0]?.message?.content?.trim();
@@ -58,7 +88,7 @@ async function callOpenAiShaped(url, key, model, prompt, maxTokens) {
 
 async function callOpenAi(prompt, maxTokens) {
   const key = process.env.OPENAI_API_KEY;
-  if (!key) throw new ProviderError('OPENAI_API_KEY belum diatur di server/.env');
+  if (!key) throw new ProviderError('OPENAI_API_KEY belum diatur di .env', 'unconfigured');
   const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
   return callOpenAiShaped('https://api.openai.com/v1/chat/completions', key, model, prompt, maxTokens);
 }
@@ -69,7 +99,7 @@ async function callOpenAiCompatible(prompt, maxTokens) {
   const model = process.env.AI_MODEL;
   const key = process.env.AI_API_KEY || '';
   if (!base || !model) {
-    throw new ProviderError('AI_BASE_URL dan AI_MODEL wajib diisi di .env untuk AI_PROVIDER=openai_compatible');
+    throw new ProviderError('AI_BASE_URL dan AI_MODEL wajib diisi di .env untuk AI_PROVIDER=openai_compatible', 'unconfigured');
   }
   return callOpenAiShaped(base, key, model, prompt, maxTokens);
 }
@@ -82,11 +112,11 @@ async function callOpenAiCompatible(prompt, maxTokens) {
  */
 async function generateText(prompt, opts = {}) {
   const maxTokens = opts.maxTokens || 400;
-  const provider = (process.env.AI_PROVIDER || 'anthropic').toLowerCase();
+  const provider = providerName();
   if (provider === 'anthropic') return callAnthropic(prompt, maxTokens);
   if (provider === 'openai') return callOpenAi(prompt, maxTokens);
   if (provider === 'openai_compatible') return callOpenAiCompatible(prompt, maxTokens);
-  throw new ProviderError(`AI_PROVIDER "${provider}" tidak dikenal. Pakai anthropic, openai, atau openai_compatible.`);
+  throw new ProviderError(`AI_PROVIDER "${provider}" tidak dikenal. Pakai anthropic, openai, atau openai_compatible.`, 'unconfigured');
 }
 
-module.exports = { generateText, ProviderError };
+module.exports = { generateText, providerInfo, ProviderError };

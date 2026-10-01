@@ -5,7 +5,8 @@ const path = require('path');
 const fs = require('fs');
 const Database = require('better-sqlite3');
 
-const dataDir = path.join(__dirname, '..', 'data');
+// DATA_DIR lets a deploy point this at its persistent disk (and lets tests use a throwaway one).
+const dataDir = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(__dirname, '..', 'data');
 fs.mkdirSync(dataDir, { recursive: true });
 
 const db = new Database(path.join(dataDir, 'azzifa.sqlite'));
@@ -36,9 +37,18 @@ db.exec(`
     circle_id INTEGER NOT NULL,
     user_id INTEGER NOT NULL,
     joined_at INTEGER NOT NULL,
+    joined_day TEXT,
     PRIMARY KEY (circle_id, user_id)
   );
 `);
+
+const columnsOf = (table) => db.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name);
+
+// joined_day is the member's own local date when they joined; rows from before it existed
+// fall back to the UTC date of joined_at (see circles.js).
+if (!columnsOf('circle_members').includes('joined_day')) {
+  db.exec('ALTER TABLE circle_members ADD COLUMN joined_day TEXT');
+}
 
 // entries and settings are keyed per user. Databases from the single-user version have no
 // user_id column: rebuild those tables with their rows parked on user_id 0, which the first
@@ -69,7 +79,7 @@ const TABLES = {
   },
 };
 Object.entries(TABLES).forEach(([table, def]) => {
-  const existing = db.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name);
+  const existing = columnsOf(table);
   if (existing.length === 0) { db.exec(def.create); return; }
   if (existing.includes('user_id')) return;
   // Older single-user tables may also predate notes/day_summary — copy only what they have.

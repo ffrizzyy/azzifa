@@ -17,6 +17,10 @@ const hashPassword = async (password, salt) => (await scrypt(password, salt, 64)
 const userCount = () => db.prepare('SELECT COUNT(*) AS n FROM users').get().n;
 const signupOpen = () => userCount() === 0 || String(process.env.ALLOW_SIGNUP || 'true').toLowerCase() !== 'false';
 
+// Express 4 does not catch a rejected promise from an async handler: without this the request
+// would hang and the rejection would take the whole process down.
+const wrap = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
+
 function readCookie(req, name) {
   const parts = (req.headers.cookie || '').split(';');
   for (const part of parts) {
@@ -36,22 +40,33 @@ function startSession(req, res, userId) {
   setSessionCookie(req, res, token, SESSION_MS);
 }
 
-// Slows down password guessing: after 8 failures for one username from one address,
-// that pair is locked out for 10 minutes. In memory only — a restart clears it.
-const failures = new Map();
-const MAX_FAILS = 8;
-const LOCK_MS = 10 * 60 * 1000;
-function isLocked(key) {
-  const f = failures.get(key);
-  if (!f) return false;
-  if (Date.now() - f.first > LOCK_MS) { failures.delete(key); return false; }
-  return f.count >= MAX_FAILS;
+/**
+ * A small in-memory attempt counter: `max` hits per `windowMs` for each key. A restart clears
+ * it, and so does growing past 10,000 keys — it only has to slow abuse down, not keep records.
+ */
+function limiter(max, windowMs) {
+  const hits = new Map();
+  const live = (key) => {
+    const h = hits.get(key);
+    if (h && Date.now() - h.first > windowMs) { hits.delete(key); return null; }
+    return h;
+  };
+  return {
+    blocked: (key) => (live(key)?.count || 0) >= max,
+    hit: (key) => {
+      if (hits.size > 10000) hits.clear();
+      const h = live(key);
+      if (h) h.count += 1; else hits.set(key, { count: 1, first: Date.now() });
+    },
+    clear: (key) => hits.delete(key),
+  };
 }
-function recordFailure(key) {
-  const f = failures.get(key);
-  if (!f || Date.now() - f.first > LOCK_MS) failures.set(key, { count: 1, first: Date.now() });
-  else f.count += 1;
-}
+// Password guessing: 8 failures for one username from one address locks that pair for 10 minutes.
+const loginFailures = limiter(8, 10 * 60 * 1000);
+// Account creation: 10 per hour from one address by default, since each one costs a password
+// hash and a row. Behind a reverse proxy every visitor shares the proxy's address, so a busy
+// server may need SIGNUPS_PER_HOUR raised.
+const signups = limiter(Number(process.env.SIGNUPS_PER_HOUR) || 10, 60 * 60 * 1000);
 
 /** Rejects the request with 401 unless it carries a live session; sets req.user otherwise. */
 function requireUser(req, res, next) {
@@ -63,7 +78,7 @@ function requireUser(req, res, next) {
     `).get(sha256(token), Date.now());
     if (user) { req.user = user; return next(); }
   }
-  res.status(401).json({ error: 'Kamu belum masuk' });
+  res.status(401).json({ error: 'Sesi kamu sudah berakhir. Masuk lagi dulu, ya.' });
 }
 
 const router = express.Router();
@@ -73,21 +88,21 @@ router.get('/config', (req, res) => {
   res.json({ signup: signupOpen(), firstAccount: userCount() === 0 });
 });
 
-router.post('/register', async (req, res) => {
-  if (!signupOpen()) return res.status(403).json({ error: 'Pendaftaran akun baru sedang ditutup' });
+router.post('/register', wrap(async (req, res) => {
+  if (!signupOpen()) return res.status(403).json({ error: 'Pendaftaran akun baru sedang ditutup. Coba hubungi pemilik server ini, ya.' });
+  if (signups.blocked(req.ip)) return res.status(429).json({ error: 'Sudah banyak akun dibuat dari sini. Coba lagi nanti, ya.' });
   const body = req.body || {};
   const username = String(body.username || '').trim().toLowerCase();
   const name = String(body.name || '').trim().slice(0, 30) || username;
   const password = String(body.password || '');
   if (!USERNAME_RE.test(username)) {
-    return res.status(400).json({ error: 'Nama pengguna 3-24 karakter: huruf kecil, angka, titik, strip, atau garis bawah' });
+    return res.status(400).json({ error: 'Nama pengguna perlu 3-24 karakter: huruf kecil, angka, titik, strip, atau garis bawah.' });
   }
   if (password.length < 8 || password.length > 200) {
-    return res.status(400).json({ error: 'Kata sandi minimal 8 karakter' });
+    return res.status(400).json({ error: 'Kata sandinya minimal 8 karakter, ya. Biar jurnalmu aman.' });
   }
-  if (db.prepare('SELECT 1 FROM users WHERE username = ?').get(username)) {
-    return res.status(409).json({ error: 'Nama pengguna itu sudah dipakai' });
-  }
+  const taken = { error: 'Nama pengguna itu sudah ada yang pakai. Coba nama lain, ya.' };
+  if (db.prepare('SELECT 1 FROM users WHERE username = ?').get(username)) return res.status(409).json(taken);
   const salt = crypto.randomBytes(16).toString('hex');
   const hash = await hashPassword(password, salt);
   let userId;
@@ -104,31 +119,34 @@ router.post('/register', async (req, res) => {
       return id;
     })();
   } catch (e) {
-    // Two registrations for the same username raced past the check above.
-    return res.status(409).json({ error: 'Nama pengguna itu sudah dipakai' });
+    if (String(e.code).startsWith('SQLITE_CONSTRAINT')) return res.status(409).json(taken); // lost a race for the name
+    throw e;
   }
+  signups.hit(req.ip);
   startSession(req, res, userId);
   res.json({ id: Number(userId), username, name });
-});
+}));
 
-router.post('/login', async (req, res) => {
+router.post('/login', wrap(async (req, res) => {
   const body = req.body || {};
   const username = String(body.username || '').trim().toLowerCase();
   const password = String(body.password || '');
   const key = `${username}|${req.ip}`;
-  if (isLocked(key)) return res.status(429).json({ error: 'Terlalu banyak percobaan. Coba lagi 10 menit lagi.' });
+  if (loginFailures.blocked(key)) {
+    return res.status(429).json({ error: 'Terlalu banyak percobaan. Istirahat dulu sekitar 10 menit, lalu coba lagi, ya.' });
+  }
   const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
   // Hash even when the user does not exist, so the response time does not reveal which names are taken.
   const hash = await hashPassword(password, user ? user.pass_salt : 'no-such-user');
   const ok = !!user && crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(user.pass_hash, 'hex'));
   if (!ok) {
-    recordFailure(key);
-    return res.status(401).json({ error: 'Nama pengguna atau kata sandi salah' });
+    loginFailures.hit(key);
+    return res.status(401).json({ error: 'Nama pengguna atau kata sandinya belum cocok. Coba lagi pelan-pelan, ya.' });
   }
-  failures.delete(key);
+  loginFailures.clear(key);
   startSession(req, res, user.id);
   res.json({ id: user.id, username: user.username, name: user.name });
-});
+}));
 
 router.post('/logout', (req, res) => {
   const token = readCookie(req, COOKIE);
@@ -137,4 +155,4 @@ router.post('/logout', (req, res) => {
   res.json({ ok: true });
 });
 
-module.exports = { router, requireUser };
+module.exports = { router, requireUser, wrap, limiter };

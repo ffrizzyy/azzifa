@@ -15,6 +15,8 @@
 <link rel="icon" type="image/png" href="/favicon.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <title>Azzifa</title>
+<meta name="description" content="Azzifa — teman refleksi harian: jurnal, mood, dan streak bareng orang terdekat.">
+<meta name="theme-color" content="#FAF4F2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600&display=swap" rel="stylesheet">
 <style>
@@ -420,6 +422,7 @@
 </head>
 <body>
 <div class="app" id="app"></div>
+<noscript><p style="max-width:32ch; margin:20vh auto; padding:0 16px; text-align:center; line-height:1.6;">Azzifa butuh JavaScript untuk menyimpan ceritamu. Aktifkan dulu di browser, ya.</p></noscript>
 <div class="toast" id="toast"></div>
 <div id="printArea"></div>
 
@@ -504,11 +507,6 @@ const EMPTY_ILLUSTRATION = `<svg viewBox="0 0 100 100" width="60" height="60" fi
   <path d="M32 66V48a18 18 0 0 1 36 0v18" stroke="var(--rose)" stroke-width="9" stroke-linecap="round" opacity=".55"/>
   <circle cx="50" cy="52" r="6.5" fill="var(--rose)"/>
 </svg>`;
-const KEY='azzifa_entries', RKEY='azzifa_reminder', IKEY='azzifa_insight';
-const load=()=>{ try{return JSON.parse(localStorage.getItem(KEY))||[];}catch(e){return [];} };
-const save=(arr)=>{ try{localStorage.setItem(KEY, JSON.stringify(arr));}catch(e){} };
-const loadReminder=()=>{ try{return JSON.parse(localStorage.getItem(RKEY))||{enabled:false,time:'20:00'};}catch(e){return {enabled:false,time:'20:00'};} };
-const saveReminder=(r)=>{ try{localStorage.setItem(RKEY, JSON.stringify(r));}catch(e){} };
 let entries = [];
 let reminder = {enabled:false, time:'20:00'};
 let tab = 'today';
@@ -533,10 +531,12 @@ let summaryAt = null;
 let summaryRange = 7;
 let summaryLoading = false;
 let summaryErr = null;
-let notifiedToday = false;
+let notifiedDay = null;      // the local date the reminder last fired on
 let dashboardInsight = null;
 let insightWeekCached = null;
 let insightLoading = false;
+let insightNote = null;      // why this week's observation is missing, when the server said why
+let ai = {configured:false, label:'AI'};   // from the server: can the AI cards work, and whose name goes in the privacy line
 let animateContent = true;   // play the entry choreography on the next render (first load, tab change)
 let calMonth = null;         // 'YYYY-MM' shown by the Dashboard calendar; null = current month
 let histQuery = '', histMood = null, histTag = null, histFav = false, histDate = null;
@@ -547,8 +547,10 @@ let circles = [], leaveConfirmId = null;
 // ---------- Storage backend: real Express + SQLite API ----------
 // Every server call goes through here: a 401 in the middle of a session (expired, or signed out
 // in another tab) drops back to the sign-in screen instead of failing one request at a time.
-function api(url, opts){
-  return window.fetch(url, opts).then(res=>{ if(res.status===401 && me) signedOut(); return res; });
+// It also tells the server which calendar day it is here, so "today" never depends on the server's clock.
+function api(url, opts={}){
+  const headers = {...(opts.headers||{}), 'X-Local-Date':todayStr()};
+  return window.fetch(url, {...opts, headers}).then(res=>{ if(res.status===401 && me) signedOut(); return res; });
 }
 async function initStorage(){
   try{
@@ -574,19 +576,43 @@ async function initStorage(){
     summaryText = settingsRes.summaryText || null; summaryAt = settingsRes.summaryAt || null;
     if(settingsRes.summaryRange) summaryRange = settingsRes.summaryRange;
     if(settingsRes.dayMode==='daily') dayMode='daily';
+    if(settingsRes.ai) ai = settingsRes.ai;
+    restoreDraft();
     entriesReady = true; syncPromptOnce();
   }catch(e){
     entriesReady = true;
-    showToast('Tidak bisa terhubung ke server. Pastikan `npm start` sedang berjalan.');
+    showToast('Azzifa belum bisa terhubung ke server. Coba muat ulang sebentar lagi, ya.');
   }
   render();
 }
 function persistProfile(patch){
   api('/api/settings', {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(patch)})
-    .catch(()=>showToast('Gagal menyimpan pengaturan ke server'));
+    .catch(()=>showToast('Pengaturannya belum tersimpan. Coba lagi sebentar lagi, ya.'));
 }
 
-function todayStr(){ return new Date().toISOString().slice(0,10); }
+// Journal days are the writer's own calendar dates, never UTC: something written at 06:00 in
+// Jakarta belongs to that morning, not to the day before.
+function localDay(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function todayStr(){ return localDay(new Date()); }
+function daysAgo(n){ const d=new Date(); d.setDate(d.getDate()-n); return localDay(d); }
+// A 'YYYY-MM-DD' string read as a local date (new Date('YYYY-MM-DD') would mean UTC midnight).
+function asDate(d){ return typeof d==='string' && /^\d{4}-\d{2}-\d{2}$/.test(d) ? new Date(d+'T00:00:00') : new Date(d); }
+
+// The unsaved draft survives a refresh or an accidental tab close. It is kept in this browser
+// only, per account and per day, and cleared once the note is saved or the account signs out.
+const draftKey = () => 'azzifa_draft_' + (me ? me.username : '');
+function rememberDraft(text){
+  draftText = text;
+  if(!me || editingIdx!==null) return;   // editing an existing note is not a draft worth restoring
+  try{ if(text) localStorage.setItem(draftKey(), JSON.stringify({day:todayStr(), text})); else localStorage.removeItem(draftKey()); }catch(e){}
+}
+function restoreDraft(){
+  try{
+    const saved = JSON.parse(localStorage.getItem(draftKey()) || 'null');
+    if(saved && saved.day===todayStr() && saved.text && draftText===null) draftText = saved.text;
+  }catch(e){}
+}
+function forgetDraft(){ try{ localStorage.removeItem(draftKey()); }catch(e){} }
 function setDayMode(m){ if(dayMode===m) return; dayMode=m; persistProfile({dayMode:m}); render(); }
 async function persistEntry(entry){
   const res = await api(`/api/entries/${entry.date}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(entry)});
@@ -598,9 +624,8 @@ async function deleteEntryDoc(date){
 }
 function askDeleteNote(date, idx){ confirmDeleteKey = date+'::'+idx; render(); }
 function cancelDeleteNote(){ confirmDeleteKey = null; render(); }
-// No window.confirm() here on purpose — Claude's published-artifact iframe blocks native dialogs
-// (no `allow-modals`), so confirm() returns falsy instantly and the delete silently never fires.
-// This is an in-page two-step confirm instead: tap trash, a "Ya, hapus / Batal" row replaces it.
+// An in-page two-step confirm rather than window.confirm(): tap trash, and a "Ya, hapus / Batal"
+// row replaces it. It stays in the app's own voice and works where native dialogs are blocked.
 async function deleteNote(date, idx){
   confirmDeleteKey = null;
   const existing = entries.find(e=>e.date===date);
@@ -615,9 +640,9 @@ async function deleteNote(date, idx){
       await persistEntry(entry);
       entries = [...entries.filter(e=>e.date!==date), entry];
     }
-  }catch(e){ showToast('Gagal menghapus, coba lagi'); return; }
+  }catch(e){ showToast('Belum berhasil dihapus. Coba lagi sebentar lagi, ya.'); return; }
   if(editingIdx!==null && date===todayStr()) cancelEdit();
-  showToast('Catatan dihapus'); render();
+  showToast('Catatannya sudah dihapus.'); render();
   if(circles.length) loadCircles();
 }
 function getGreeting(){
@@ -628,8 +653,8 @@ function getGreeting(){
   if(h<19) return "Sore. Capek, kesel, atau biasa aja — semuanya boleh.";
   return "Malam. Taruh dulu apa yang kamu bawa hari ini.";
 }
-function fmtDate(d){ return new Date(d).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}); }
-function fmtShort(d){ return new Date(d).toLocaleDateString('id-ID',{day:'numeric',month:'short'}); }
+function fmtDate(d){ return asDate(d).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}); }
+function fmtShort(d){ return asDate(d).toLocaleDateString('id-ID',{day:'numeric',month:'short'}); }
 function moodInfo(k){ return MOODS.find(m=>m.k===k) || MOODS[2]; }
 function hasEntryToday(){ return !!entries.find(e=>e.date===todayStr()); }
 const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -658,7 +683,7 @@ function toggleTheme(){
 function rollingCheckins(n=7){
   const days=new Set(entries.map(e=>e.date));
   let count=0;
-  for(let i=0;i<n;i++){ const d=new Date(); d.setDate(d.getDate()-i); if(days.has(d.toISOString().slice(0,10))) count++; }
+  for(let i=0;i<n;i++){ if(days.has(daysAgo(i))) count++; }
   return count;
 }
 function longestStreakEver(){
@@ -674,7 +699,7 @@ function entriesThisMonth(){ const ym=todayStr().slice(0,7); return entries.filt
 function hardestDayInfo(){
   const buckets={}; const dayNames=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
   entries.forEach(e=>{
-    const d=new Date(e.date).getDay(); const v=MOOD_ORDER.indexOf(e.mood)+1;
+    const d=asDate(e.date).getDay(); const v=MOOD_ORDER.indexOf(e.mood)+1;
     if(!buckets[d]) buckets[d]={sum:0,count:0};
     buckets[d].sum+=v; buckets[d].count++;
   });
@@ -695,14 +720,14 @@ function getRecognizer(){
       for(let i=ev.resultIndex;i<ev.results.length;i++){ if(ev.results[i].isFinal) finalText+=ev.results[i][0].transcript; }
       if(finalText && micTarget){
         const el=document.getElementById(micTarget);
-        if(el){ el.value += (el.value?' ':'')+finalText.trim(); if(micTarget==='entryText') draftText=el.value; }
+        if(el){ el.value += (el.value?' ':'')+finalText.trim(); if(micTarget==='entryText') rememberDraft(el.value); }
       }
     };
     recognizer.onerror=(ev)=>{
       if(ev.error==='not-allowed' || ev.error==='service-not-allowed'){
-        micIntentionalStop=true; showToast('Izin mikrofon ditolak — aktifkan lewat pengaturan browser');
+        micIntentionalStop=true; showToast('Mikrofonnya belum diizinkan. Kamu bisa mengaktifkannya lewat pengaturan browser.');
       } else if(ev.error!=='no-speech'){
-        micIntentionalStop=true; showToast('Input suara terganggu, coba lagi');
+        micIntentionalStop=true; showToast('Suaranya sempat terputus. Coba sekali lagi, ya.');
       }
       // 'no-speech' is harmless — onend will decide whether to keep listening
     };
@@ -722,7 +747,7 @@ function renderMicButtons(){
 }
 function toggleMic(targetId){
   const r=getRecognizer();
-  if(!r){ showToast('Input suara tidak didukung di browser ini'); return; }
+  if(!r){ showToast('Browser ini belum mendukung input suara. Kamu tetap bisa mengetik seperti biasa.'); return; }
   const el=document.getElementById(targetId);
   if(micActive && micTarget===targetId){
     micIntentionalStop=true; micActive=false; micTarget=null; r.stop();
@@ -740,7 +765,7 @@ function toggleReminder(on){
   reminder.enabled = on;
   persistProfile({reminderEnabled:on, reminderTime:reminder.time});
   if(on && 'Notification' in window && Notification.permission==='default'){
-    Notification.requestPermission().then(p=>{ if(p!=='granted') showToast('Izin notifikasi tidak diberikan, banner tetap aktif'); });
+    Notification.requestPermission().then(p=>{ if(p!=='granted') showToast('Notifikasi belum diizinkan. Tenang, sapaan di sini tetap mengingatkanmu.'); });
   }
   render();
 }
@@ -748,8 +773,13 @@ function setReminderTime(t){ reminder.time=t; persistProfile({reminderEnabled:re
 function checkReminderTick(){
   if(!me || !reminder.enabled || hasEntryToday()) return;
   if(!('Notification' in window) || Notification.permission!=='granted') return;
-  const now=new Date(); const hh=String(now.getHours()).padStart(2,'0'); const mm=String(now.getMinutes()).padStart(2,'0');
-  if(`${hh}:${mm}`===reminder.time && !notifiedToday){ notifiedToday=true; try{ new Notification('Azzifa',{body:'Waktunya check-in sebentar. Tidak perlu panjang.'}); }catch(e){} }
+  const now=new Date(); const hm=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  // Once a day, at or after the chosen time — a throttled background tab can skip the exact
+  // minute — and only while the tab is hidden: when it is open, the greeting does the reminding.
+  if(hm>=reminder.time && notifiedDay!==todayStr() && document.hidden){
+    notifiedDay=todayStr();
+    try{ new Notification('Azzifa',{body:'Waktunya mampir sebentar. Tidak perlu panjang, yang penting kamu cerita.'}); }catch(e){}
+  }
 }
 setInterval(checkReminderTick, 30000);
 
@@ -794,6 +824,7 @@ function renderToday(){
   const val = draftText!==null ? draftText : (editing ? editing.text : '');
   const todayEntry = entries.find(e=>e.date===todayStr());
   const daySummary = todayEntry && todayEntry.daySummary ? todayEntry.daySummary : null;
+  const moodNow = selectedMood || (todayEntry && todayEntry.mood) || null;   // today's saved mood stays highlighted
   // Desktop only: keeps the right-hand column from sitting empty on a first day.
   const sideEmpty = !notes.length && !circles.length && !lookbacks().length;
 
@@ -810,7 +841,7 @@ function renderToday(){
       <p class="prompt-text">${esc(promptShown)}</p>
       ${editing ? `<button class="btn-ghost-sm" onclick="cancelEdit()">Batal mengubah</button>` : (dayMode==='checkup' ? `<button class="btn-ghost-sm" onclick="syncDraft(); swapPrompt()">${ICONS.refresh}Ganti pertanyaan</button>` : '')}
       <div class="field-row">
-        <textarea id="entryText" placeholder="Tulis apa saja, tidak perlu rapi. Pakai #tag untuk menandai topik.">${esc(val)}</textarea>
+        <textarea id="entryText" oninput="rememberDraft(this.value)" placeholder="Tulis apa saja, tidak perlu rapi. Pakai #tag untuk menandai topik.">${esc(val)}</textarea>
         <button class="mic-btn" data-target="entryText" onclick="toggleMic('entryText')" title="Bicara" aria-label="Dikte suara">${ICONS.mic}</button>
       </div>
       <button class="save" onclick="saveEntry()"><span>${editing?'Perbarui catatan':'Simpan'}</span><span class="chev" aria-hidden="true">${ICONS.chev}</span></button>
@@ -823,10 +854,10 @@ function renderToday(){
         ? '<div class="skeleton" role="status" aria-label="Membuat rangkuman"><span></span><span></span><span class="short"></span></div>'
         : (daySummary
             ? `<p class="summary-text">${esc(daySummary.text)}</p><p class="summary-meta">Dibuat ${fmtDate(daySummary.at)}</p>`
-            : `<p class="summary-hint">Semua langkah hari ini sudah kamu isi. Buat rangkumannya?</p>`)}
+            : `<p class="summary-hint">Semua langkah hari ini sudah kamu isi. ${ai.configured ? 'Buat rangkumannya?' : 'Terima kasih sudah meluangkan waktu untuk dirimu.'}</p>`)}
       ${daySummaryErr ? `<p class="summary-err" role="alert">${esc(daySummaryErr)}</p>` : ''}
-      <button class="btn-soft" onclick="generateDaySummary()" ${daySummaryLoading?'disabled':''}>${daySummary?'Buat ulang rangkuman':'Rangkum hari ini'}</button>
-      <p class="summary-privacy">Catatan hari ini dikirim ke Claude untuk dirangkum.</p>
+      ${ai.configured ? `<button class="btn-soft" onclick="generateDaySummary()" ${daySummaryLoading?'disabled':''}>${daySummary?'Buat ulang rangkuman':'Rangkum hari ini'}</button>
+      <p class="summary-privacy">Catatan hari ini dikirim ke ${esc(ai.label)} untuk dirangkum.</p>` : `<p class="summary-privacy">${AI_OFF_NOTE}</p>`}
     </section>` : '';
 
   return `
@@ -834,7 +865,7 @@ function renderToday(){
     <section class="card mood-card" aria-labelledby="mood-h">
       <h2 class="section-h" id="mood-h">Gimana perasaanmu hari ini?</h2>
       <div class="mood-row" role="group" aria-label="Pilih mood">
-        ${MOODS.map(m=>`<button class="mood ${selectedMood===m.k?'sel':''}" aria-pressed="${selectedMood===m.k}" onclick="syncDraft(); selectMood('${m.k}')"><span class="emoji" style="background:${m.c}${selectedMood===m.k?'40':'26'}">${m.e}</span><span class="lbl">${m.l}</span></button>`).join('')}
+        ${MOODS.map(m=>`<button class="mood ${moodNow===m.k?'sel':''}" aria-pressed="${moodNow===m.k}" onclick="syncDraft(); selectMood('${m.k}')"><span class="emoji" style="background:${m.c}${moodNow===m.k?'40':'26'}">${m.e}</span><span class="lbl">${m.l}</span></button>`).join('')}
       </div>
     </section>
     ${modeSwitch}
@@ -868,7 +899,20 @@ function setTab(t){
   const c=document.querySelector('.content');
   if(c && c.getBoundingClientRect().top<0) c.scrollIntoView({block:'start'});
 }
-function selectMood(k){ selectedMood=k; render(); document.getElementById('entryText')?.focus(); }
+// Before the first note of the day the choice simply waits for it. Once the day has an entry,
+// picking a mood updates that day straight away, so a feeling can change without writing more.
+async function selectMood(k){
+  const existing = entries.find(e=>e.date===todayStr());
+  if(!existing){ selectedMood=k; render(); document.getElementById('entryText')?.focus(); return; }
+  if(existing.mood===k) return;
+  const entry = {...existing, mood:k};
+  try{ await persistEntry(entry); }
+  catch(e){ showToast('Perasaanmu belum tersimpan. Coba lagi sebentar lagi, ya.'); return; }
+  entries = [...entries.filter(e=>e.date!==entry.date), entry];
+  selectedMood = null;
+  showToast(`Perasaan hari ini dicatat: ${moodInfo(k).l}.`);
+  syncDraft(); render();
+}
 function swapPrompt(){ promptIdx=pickPrompt(); render(); }
 function editNote(i){
   syncDraft(); if(editingIdx===null) stashedDraft=draftText;
@@ -879,7 +923,7 @@ function editNote(i){
 function cancelEdit(){ editingIdx=null; draftText=stashedDraft; stashedDraft=null; render(); }
 async function saveEntry(){
   const text=document.getElementById('entryText').value.trim();
-  if(!text){ showToast('Tulis dulu sedikit sebelum menyimpan'); return; }
+  if(!text){ showToast('Tulis dulu sedikit, ya. Satu kalimat juga boleh.'); return; }
   const date=todayStr();
   const existing=entries.find(e=>e.date===date);
   const notes=existing ? notesOf(existing).map(n=>({...n})) : [];
@@ -893,14 +937,14 @@ async function saveEntry(){
   const entry={date, mood, prompt:notes[0].prompt, text:notes.map(n=>n.text).join('\n\n'), notes, updatedAt:Date.now()};
   if(existing && existing.daySummary) entry.daySummary = existing.daySummary;
   try{ await persistEntry(entry); }
-  catch(e){ showToast('Gagal menyimpan, coba lagi'); return; }
+  catch(e){ showToast('Belum berhasil tersimpan. Tulisanmu masih aman di sini, coba lagi sebentar lagi, ya.'); return; }
   entries=[...entries.filter(e=>e.date!==date), entry];
   selectedMood=null; editingIdx=null;
   if(wasEditing){ draftText=stashedDraft; stashedDraft=null; }
-  else{ draftText=null; promptIdx=pickPrompt(notes); }   // next Check Up question appears on its own
+  else{ draftText=null; forgetDraft(); promptIdx=pickPrompt(notes); }   // next Check Up question appears on its own
   showToast(SAVE_MESSAGES[Math.floor(Math.random()*SAVE_MESSAGES.length)]); render();
   if(!wasEditing && circles.length) loadCircles();
-  if(!wasEditing && dayMode==='daily' && notes.length===DAILY_STEPS.length){
+  if(!wasEditing && ai.configured && dayMode==='daily' && notes.length===DAILY_STEPS.length){
     generateDaySummary();   // fourth step just landed — wrap the day up automatically
   }
 }
@@ -909,18 +953,18 @@ async function saveEntry(){
 async function generateDaySummary(){
   if(daySummaryLoading) return;
   const notes = todayNotes();
-  if(notes.length===0){ daySummaryErr='Belum ada catatan hari ini.'; render(); return; }
+  if(notes.length===0){ daySummaryErr='Belum ada catatan hari ini. Tulis dulu sedikit, ya.'; render(); return; }
   daySummaryLoading=true; daySummaryErr=null; render();
   try{
     const res = await api(`/api/entries/${todayStr()}/day-summary`, {method:'POST'});
     const data = await res.json();
-    if(!res.ok){ daySummaryErr = data.error || 'Gagal membuat rangkuman. Coba lagi sebentar lagi.'; }
+    if(!res.ok){ daySummaryErr = data.error || 'Rangkumannya belum berhasil dibuat. Coba lagi sebentar lagi, ya.'; }
     else{
       const existing = entries.find(e=>e.date===todayStr());
       const entry = {...existing, daySummary:{text:data.text, at:data.at}};
       entries=[...entries.filter(e=>e.date!==entry.date), entry];
     }
-  }catch(e){ daySummaryErr='Tidak bisa menghubungi server.'; }
+  }catch(e){ daySummaryErr='Azzifa belum bisa terhubung ke server. Coba lagi sebentar lagi, ya.'; }
   daySummaryLoading=false; render();
 }
 
@@ -928,11 +972,17 @@ async function generateDaySummary(){
 function seriesForRange(n){
   const byDate={}; entries.forEach(e=>byDate[e.date]=e);
   const days=[];
-  for(let i=n-1;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i); const s=d.toISOString().slice(0,10); const e=byDate[s];
+  for(let i=n-1;i>=0;i--){ const s=daysAgo(i); const e=byDate[s];
     days.push({date:s, value: e?MOOD_ORDER.indexOf(e.mood)+1:null, mood: e?e.mood:null}); }
   return days;
 }
 function setRange(n){ chartRange=n; render(); }
+const AI_OFF_NOTE = 'Rangkuman AI belum diaktifkan di server ini. Catatanmu tetap tersimpan seperti biasa.';
+function insightEmptyText(){
+  if(!ai.configured) return 'Pengamatan AI belum diaktifkan di server ini. Grafik dan kalendermu tetap jalan seperti biasa.';
+  if(totalNotes()<3) return 'Tulis 3 catatan dulu, ya. Setelah itu Azzifa bisa mengamati polanya.';
+  return esc(insightNote) || 'Pengamatan minggu ini belum tersedia. Coba buka lagi nanti, ya.';
+}
 function renderChartSVG(days){
   const w=440,h=160,padL=28,padR=10,padT=10,padB=24, innerW=w-padL-padR, innerH=h-padT-padB, stepX=innerW/(days.length-1||1);
   const yFor=v=>padT+innerH-((v-1)/4)*innerH;
@@ -950,20 +1000,19 @@ function renderChartSVG(days){
   return `<div class="chart-draw"><svg viewBox="0 0 ${w} ${h}" style="width:100%; height:auto; display:block;">${gridLines}${emojiLabels}${lines}${dots}${xLabels}</svg></div>`;
 }
 function weekKey(){
-  const d=new Date(); const day=(d.getDay()+6)%7; // Monday=0
-  d.setDate(d.getDate()-day);
-  return d.toISOString().slice(0,10); // this week's Monday
+  return daysAgo((new Date().getDay()+6)%7); // this week's Monday (the server derives the same key)
 }
 async function ensureInsight(){
   if(insightWeekCached===weekKey() && dashboardInsight){ render(); return; }
+  if(!ai.configured){ dashboardInsight=null; return; }   // nothing to ask, and nothing to apologise for in a toast
   if(totalNotes()<3){ dashboardInsight=null; return; }
   if(insightLoading) return;
   insightLoading=true; render();
   try{
     const res = await api('/api/insight', {method:'POST'});
     const data = await res.json();
-    if(!res.ok){ dashboardInsight = null; showToast(data.error || 'Gagal membuat pengamatan'); }
-    else{ dashboardInsight = data.text; insightWeekCached = data.week; }
+    if(!res.ok){ dashboardInsight = null; insightNote = data.error || null; }
+    else{ dashboardInsight = data.text; insightWeekCached = data.week; insightNote = null; }
   }catch(e){ dashboardInsight = null; }
   insightLoading=false; render();
 }
@@ -1028,23 +1077,23 @@ async function circleAction(url, opts){
     const data=await res.json();
     if(!res.ok){
       const errEl=document.getElementById('circleErr');
-      if(errEl){ errEl.textContent=data.error || 'Gagal, coba lagi'; errEl.hidden=false; }
+      if(errEl){ errEl.textContent=data.error || 'Belum berhasil. Coba lagi sebentar lagi, ya.'; errEl.hidden=false; }
       return false;
     }
     circles=data; leaveConfirmId=null; refreshCirclesUI();
     return true;
-  }catch(e){ showToast('Tidak bisa menghubungi server.'); return false; }
+  }catch(e){ showToast('Azzifa belum bisa terhubung ke server. Coba lagi sebentar lagi, ya.'); return false; }
 }
 const JSON_POST = body => ({method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
 async function createCircle(ev){
   ev.preventDefault();
   const name=document.getElementById('circleName').value.trim();
-  if(name && await circleAction('/api/circles', JSON_POST({name}))) showToast('Grup dibuat. Bagikan kode undangannya.');
+  if(name && await circleAction('/api/circles', JSON_POST({name}))) showToast('Grupnya sudah jadi. Bagikan kode undangannya ke temanmu, ya.');
 }
 async function joinCircle(ev){
   ev.preventDefault();
   const code=document.getElementById('circleCode').value.trim();
-  if(code && await circleAction('/api/circles/join', JSON_POST({code}))) showToast('Kamu sudah bergabung.');
+  if(code && await circleAction('/api/circles/join', JSON_POST({code}))) showToast('Selamat datang di grup. Semangat nulis bareng, ya.');
 }
 function askLeave(id){ leaveConfirmId=id; refreshCirclesUI(); }
 function leaveCircle(id){ circleAction(`/api/circles/${id}/membership`, {method:'DELETE'}); }
@@ -1071,8 +1120,8 @@ async function submitAuth(ev){
   try{
     const res=await api(`/api/auth/${authMode==='register'?'register':'login'}`, JSON_POST(body));
     const data=await res.json();
-    if(!res.ok) return fail(data.error || 'Gagal masuk, coba lagi');
-  }catch(e){ return fail('Tidak bisa menghubungi server.'); }
+    if(!res.ok) return fail(data.error || 'Belum berhasil masuk. Coba lagi sebentar lagi, ya.');
+  }catch(e){ return fail('Azzifa belum bisa terhubung ke server. Coba lagi sebentar lagi, ya.'); }
   authBusy=false; tab='today'; animateContent=true; nudgeShown=false;
   initStorage();
 }
@@ -1086,6 +1135,7 @@ function signedOut(){
   api('/api/auth/config').then(r=>r.json()).then(c=>{ authCfg=c; if(!me) render(); }).catch(()=>{});
 }
 async function logout(){
+  forgetDraft();   // an unsaved draft should not stay behind on a shared device
   try{ await api('/api/auth/logout', {method:'POST'}); }catch(e){}
   signedOut();
 }
@@ -1160,7 +1210,7 @@ function renderCalendar(){
 function renderTrend(){
   const days=seriesForRange(chartRange);
   const withData=days.filter(d=>d.value!==null);
-  let summary='Belum cukup data untuk rentang ini.';
+  let summary='Belum ada catatan di rentang ini. Pelan-pelan saja, satu hari satu catatan.';
   if(withData.length){
     const avg=withData.reduce((a,b)=>a+b.value,0)/withData.length;
     const nearest=MOOD_ORDER[Math.round(avg)-1]||'biasa';
@@ -1186,7 +1236,7 @@ function renderTrend(){
       <div class="chart-summary">${summary}</div>
       <div class="insight-box">
         <div class="lbl">Pengamatan AI minggu ini</div>
-        ${insightLoading ? '<div class="skeleton" role="status" aria-label="Menganalisis pola"><span></span><span></span><span class="short"></span></div>' : (dashboardInsight ? esc(dashboardInsight) : (totalNotes()<3 ? 'Isi minimal 3 catatan agar pengamatan bisa dibuat.' : 'Belum tersedia.'))}
+        ${insightLoading ? '<div class="skeleton" role="status" aria-label="Menganalisis pola"><span></span><span></span><span class="short"></span></div>' : (dashboardInsight ? esc(dashboardInsight) : insightEmptyText())}
       </div>
     </div>
     </div>
@@ -1198,11 +1248,11 @@ function renderTrend(){
 }
 // ---------- History + export ----------
 function exportTxt(){
-  if(entries.length===0){ showToast('Belum ada catatan untuk diekspor'); return; }
+  if(entries.length===0){ showToast('Belum ada catatan untuk diekspor. Mulai dari satu catatan dulu, ya.'); return; }
   window.location.href = '/api/export.txt';
 }
 function printReport(){
-  if(entries.length===0){ showToast('Belum ada catatan untuk dicetak'); return; }
+  if(entries.length===0){ showToast('Belum ada catatan untuk dicetak. Mulai dari satu catatan dulu, ya.'); return; }
   const sorted=[...entries].sort((a,b)=>a.date.localeCompare(b.date));
   document.getElementById('printArea').innerHTML = `
     <h2 style="font-family:'Plus Jakarta Sans',sans-serif; font-weight:700;">Azzifa — Catatan Refleksi</h2>
@@ -1223,9 +1273,9 @@ async function generateSummary(){
   try{
     const res = await api('/api/summary', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({range:summaryRange})});
     const data = await res.json();
-    if(!res.ok){ summaryErr = data.error || 'Gagal membuat rangkuman. Coba lagi sebentar lagi.'; }
+    if(!res.ok){ summaryErr = data.error || 'Rangkumannya belum berhasil dibuat. Coba lagi sebentar lagi, ya.'; }
     else{ summaryText = data.text; summaryAt = data.at; }
-  }catch(e){ summaryErr = 'Tidak bisa menghubungi server.'; }
+  }catch(e){ summaryErr = 'Azzifa belum bisa terhubung ke server. Coba lagi sebentar lagi, ya.'; }
   summaryLoading=false; render();
 }
 function renderSummaryCard(){
@@ -1248,10 +1298,10 @@ function renderSummaryCard(){
       ? '<div class="skeleton" role="status" aria-label="Membuat rangkuman"><span></span><span></span><span></span><span class="short"></span></div>'
       : (summaryText
           ? `<p class="summary-text">${esc(summaryText)}</p><p class="summary-meta">Dibuat ${fmtDate(summaryAt)}</p>`
-          : `<p class="summary-hint">Ringkas kegiatanmu dari catatan yang sudah kamu tulis.</p>`)}
+          : `<p class="summary-hint">${ai.configured ? 'Ringkas kegiatanmu dari catatan yang sudah kamu tulis.' : 'Di sini nanti Azzifa bisa merangkum kegiatanmu.'}</p>`)}
     ${summaryErr ? `<p class="summary-err" role="alert">${esc(summaryErr)}</p>` : ''}
-    <button class="btn-soft" onclick="generateSummary()" ${summaryLoading?'disabled':''}>${summaryText?'Buat ulang rangkuman':'Rangkum kegiatanku'}</button>
-    <p class="summary-privacy">Catatan pada rentang ini dikirim ke Claude untuk dirangkum.</p>
+    ${ai.configured ? `<button class="btn-soft" onclick="generateSummary()" ${summaryLoading?'disabled':''}>${summaryText?'Buat ulang rangkuman':'Rangkum kegiatanku'}</button>
+    <p class="summary-privacy">Catatan pada rentang ini dikirim ke ${esc(ai.label)} untuk dirangkum.</p>` : `<p class="summary-privacy">${AI_OFF_NOTE}</p>`}
   </div>`;
 }
 // ---------- Search, #tags, favourites, day filter (Riwayat) ----------
@@ -1302,14 +1352,14 @@ async function toggleFav(date, idx){
   const notes=notesOf(existing).map((n,i)=>i===idx ? {...n, fav:!n.fav} : {...n});
   const entry={...existing, notes};
   try{ await persistEntry(entry); }
-  catch(e){ showToast('Gagal menyimpan, coba lagi'); return; }
+  catch(e){ showToast('Belum berhasil tersimpan. Tulisanmu masih aman di sini, coba lagi sebentar lagi, ya.'); return; }
   entries=[...entries.filter(e=>e.date!==date), entry];
   render();
 }
 
 // ---------- Backup and restore (.json) ----------
 function exportJson(){
-  if(entries.length===0){ showToast('Belum ada catatan untuk dicadangkan'); return; }
+  if(entries.length===0){ showToast('Belum ada catatan untuk dicadangkan. Mulai dari satu catatan dulu, ya.'); return; }
   window.location.href = '/api/export.json';
 }
 function pickImport(){ document.getElementById('importFile')?.click(); }
@@ -1321,7 +1371,7 @@ async function readImport(input){
     const list=Array.isArray(data) ? data : (data && data.entries);
     if(!Array.isArray(list) || list.length===0) throw new Error('empty');
     importPending=list;
-  }catch(e){ importPending=null; showToast('File cadangan tidak dikenali'); }
+  }catch(e){ importPending=null; showToast('File cadangannya belum bisa dibaca. Pastikan itu file .json dari Azzifa, ya.'); }
   render();
 }
 function cancelImport(){ importPending=null; render(); }
@@ -1331,12 +1381,12 @@ async function confirmImport(){
   try{
     const res=await api('/api/import', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({entries:importPending})});
     const data=await res.json();
-    if(!res.ok){ showToast(data.error || 'Gagal memulihkan cadangan'); }
+    if(!res.ok){ showToast(data.error || 'Cadangannya belum berhasil dipulihkan. Coba lagi sebentar lagi, ya.'); }
     else{
       entries=await api('/api/entries').then(r=>r.json());
-      showToast(`${data.imported} hari dipulihkan dari cadangan`);
+      showToast(`${data.imported} hari catatanmu sudah kembali.`);
     }
-  }catch(e){ showToast('Tidak bisa menghubungi server.'); }
+  }catch(e){ showToast('Azzifa belum bisa terhubung ke server. Coba lagi sebentar lagi, ya.'); }
   importPending=null; importBusy=false; render();
 }
 // Same in-page two-step confirm as deleting a note: restoring overwrites days that already exist.
@@ -1510,9 +1560,9 @@ function render(){
       </div>
       </div>
       ${authed ? `<nav class="tabs" aria-label="Menu utama">
-        <button class="${tab==='today'?'active':''}" onclick="setTab('today')">Hari ini</button>
-        <button class="${tab==='trend'?'active':''}" onclick="setTab('trend')">Dashboard</button>
-        <button class="${tab==='history'?'active':''}" onclick="setTab('history')">Riwayat</button>
+        <button class="${tab==='today'?'active':''}"${tab==='today'?' aria-current="page"':''} onclick="setTab('today')">Hari ini</button>
+        <button class="${tab==='trend'?'active':''}"${tab==='trend'?' aria-current="page"':''} onclick="setTab('trend')">Dashboard</button>
+        <button class="${tab==='history'?'active':''}"${tab==='history'?' aria-current="page"':''} onclick="setTab('history')">Riwayat</button>
       </nav>` : ''}
     </header>
     <main class="content tab-${authed ? tab : 'auth'}">
