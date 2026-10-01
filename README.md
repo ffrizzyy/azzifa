@@ -7,7 +7,8 @@ Jurnal harian dengan mood tracker (beberapa catatan per hari), dashboard tren mo
 - **Hari ini** — halaman dibuka langsung pada **kartu tulis**, fitur utamanya: kartu terbesar di halaman, berisi pilihan mode, pertanyaan, kotak tulis, foto, perasaan hari ini, dan tombol simpan. Tulis dengan mode Harian (empat langkah tetap + rangkuman AI; ini yang terbuka duluan) atau Check Up (pertanyaan acak). Tiap catatan bisa diberi **foto** dari kamera atau galeri (maksimal 4 per catatan; catatan boleh hanya berisi foto). Kartu **Hari ini di masa lalu** menampilkan catatanmu seminggu, sebulan, 3 dan 6 bulan lalu, serta tanggal yang sama di tahun-tahun sebelumnya.
 - **Dashboard** — streak, grafik mood 7/30 hari, pengamatan AI mingguan, **kalender mood** per bulan (ketuk tanggal untuk membuka catatannya), dan **streak bareng**.
 - **Riwayat** — **pencarian**, saringan mood, **#tag** (tulis `#kerja` di catatan, otomatis jadi tag), **favorit** (bintang per catatan), rangkuman AI, ekspor `.txt`, cetak/PDF, serta **cadangan `.json`** yang bisa dipulihkan lagi.
-- **Tur fitur** — saat pertama kali masuk, tiap akun diajak keliling langkah demi langkah (17 langkah, bisa dilewati) melewati semua fitur di ketiga halaman. Tur bisa dibuka lagi kapan saja lewat ikon lonceng.
+- **Tur fitur** — saat pertama kali masuk, tiap akun diajak keliling langkah demi langkah (19 langkah, bisa dilewati) melewati semua fitur di keempat halaman. Tur bisa dibuka lagi kapan saja dari halaman Profil.
+- **Profil** — satu halaman untuk profil dan pengaturan: nama panggilan, ganti kata sandi, pengingat harian, tema, mode menulis, tur fitur, dan tombol keluar.
 - **Akun** — satu server bisa dipakai beberapa orang. Tiap akun punya jurnal sendiri yang tidak bisa dibaca akun lain.
 
 ### Streak bareng
@@ -127,7 +128,9 @@ Semua route `/api/*` selain `/api/auth/*` butuh sesi masuk (cookie) dan hanya me
 | POST | `/api/auth/register` | Buat akun `{username, name, password}` lalu langsung masuk |
 | POST | `/api/auth/login` | Masuk `{username, password}`. 8 kali gagal = terkunci 10 menit |
 | POST | `/api/auth/logout` | Keluar; sesi dihapus di server |
-| GET | `/api/me` | Akun yang sedang masuk |
+| GET | `/api/me` | Akun yang sedang masuk: `{id, username, name, createdAt}` |
+| PATCH | `/api/account/profile` | Ganti nama panggilan `{name}` |
+| POST | `/api/account/password` | Ganti kata sandi `{current, next}`. Sesi di perangkat lain dihapus |
 | GET | `/api/circles` | Grup streak yang kamu ikuti: streak, anggota, siapa yang sudah menulis hari ini |
 | POST | `/api/circles` | Buat grup `{name}` |
 | POST | `/api/circles/join` | Gabung dengan kode undangan `{code}` |
@@ -151,7 +154,7 @@ Satu hari kini bisa punya beberapa catatan terpisah (kolom `notes`, JSON array `
 
 ## Catatan jujur soal keterbatasan
 
-- **Akun sederhana.** Ada daftar/masuk/keluar, tapi belum ada ganti kata sandi, lupa kata sandi, atau hapus akun dari antarmuka. Kalau lupa kata sandi, satu-satunya jalan saat ini adalah mengubah database langsung.
+- **Akun sederhana.** Nama panggilan dan kata sandi bisa diganti dari halaman Profil, tapi belum ada "lupa kata sandi" atau hapus akun dari antarmuka. Kalau lupa kata sandi, satu-satunya jalan saat ini adalah mengubah database langsung.
 - **Pendaftaran terbuka secara default.** Siapa pun yang tahu alamat server bisa membuat akun (jurnal tiap akun tetap terpisah). Set `ALLOW_SIGNUP=false` setelah semua orang yang kamu ajak sudah mendaftar.
 - **Pakai HTTPS kalau di-deploy.** Kata sandi dikirim saat masuk; tanpa HTTPS ia lewat jaringan tanpa enkripsi. Di balik reverse proxy HTTPS, cookie sesi otomatis diberi tanda `Secure`.
 - **Streak bareng hanya antar akun di server yang sama.** Dua instalasi Azzifa yang terpisah tidak bisa saling terhubung.

@@ -80,7 +80,7 @@ function requireUser(req, res, next) {
   const token = readCookie(req, COOKIE);
   if (token) {
     const user = db.prepare(`
-      SELECT u.id, u.username, u.name FROM sessions s JOIN users u ON u.id = s.user_id
+      SELECT u.id, u.username, u.name, u.created_at AS createdAt FROM sessions s JOIN users u ON u.id = s.user_id
       WHERE s.token_hash = ? AND s.expires_at > ?
     `).get(sha256(token), Date.now());
     if (user) { req.user = user; return next(); }
@@ -169,4 +169,40 @@ router.post('/logout', (req, res) => {
   res.json({ ok: true });
 });
 
-module.exports = { router, requireUser, wrap, limiter };
+// ---------- The signed-in account (mounted behind requireUser, at /api/account) ----------
+const account = express.Router();
+
+account.patch('/profile', (req, res) => {
+  const name = String((req.body && req.body.name) || '').trim().slice(0, 30);
+  if (!name) return res.status(400).json({ error: 'Nama panggilannya belum diisi. Tulis nama yang kamu suka, ya.' });
+  db.prepare('UPDATE users SET name = ? WHERE id = ?').run(name, req.user.id);
+  res.json({ ...req.user, name });
+});
+
+// Wrong guesses at the current password are counted like failed sign-ins.
+account.post('/password', wrap(async (req, res) => {
+  const body = req.body || {};
+  const current = String(body.current || '');
+  const next = String(body.next || '');
+  const key = `password|${req.user.id}`;
+  if (loginFailures.blocked(key)) {
+    return res.status(429).json({ error: 'Terlalu banyak percobaan. Istirahat dulu sekitar 10 menit, lalu coba lagi, ya.' });
+  }
+  if (next.length < 8 || next.length > 200) {
+    return res.status(400).json({ error: 'Kata sandi barunya minimal 8 karakter, ya. Biar jurnalmu aman.' });
+  }
+  const user = db.prepare('SELECT pass_hash, pass_salt FROM users WHERE id = ?').get(req.user.id);
+  const hash = await hashPassword(current, user.pass_salt);
+  if (!crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(user.pass_hash, 'hex'))) {
+    loginFailures.hit(key);
+    return res.status(403).json({ error: 'Kata sandi yang sekarang belum cocok. Coba lagi pelan-pelan, ya.' });
+  }
+  loginFailures.clear(key);
+  const salt = crypto.randomBytes(16).toString('hex');
+  db.prepare('UPDATE users SET pass_hash = ?, pass_salt = ? WHERE id = ?').run(await hashPassword(next, salt), salt, req.user.id);
+  // Anyone still signed in elsewhere with the old password is signed out; this device stays in.
+  db.prepare('DELETE FROM sessions WHERE user_id = ? AND token_hash != ?').run(req.user.id, sha256(readCookie(req, COOKIE) || ''));
+  res.json({ ok: true });
+}));
+
+module.exports = { router, account, requireUser, wrap, limiter };

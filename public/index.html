@@ -114,6 +114,9 @@
   .col{display:contents;}
   .tab-history #histList{order:1;}
   .tab-history .summary, .tab-history .actions, .tab-history .confirm-row.block{order:2;}
+  .tab-profile .settings-card{order:1;}
+  .tab-profile .account-card{order:2;}
+  .tab-profile .pw-card{order:3;}
   .side-empty{display:none;}
   .card{border-radius:var(--r-card); padding:22px; margin-bottom:16px;}
   .section-h{margin:0 0 16px; font-weight:800; font-size:19px; line-height:1.25; letter-spacing:-0.025em; color:var(--ink);}
@@ -154,17 +157,6 @@
     box-shadow:inset 0 1px 0 rgba(255,255,255,.28), 0 20px 32px -18px var(--clay);}
   .save .chev{width:42px; height:42px; border-radius:50%; background:rgba(255,255,255,.2); display:flex; align-items:center; justify-content:center;}
 
-  /* ---- Reminder popover: anchored under the bell, closes on outside click or Escape ---- */
-  .popover{position:absolute; top:calc(100% + 12px); right:0; width:min(320px,100%); background:var(--float); border-radius:var(--r-inner); padding:18px; font-size:13.5px; box-shadow:0 0 0 1px var(--ring), 0 32px 60px -24px rgba(58,34,43,.5); transform-origin:calc(100% - 65px) 0;}
-  .popover::before{content:""; position:absolute; top:-6px; right:60px; width:12px; height:12px; background:var(--float); border-radius:3px 0 0 0; transform:rotate(45deg); box-shadow:-1px -1px 0 var(--ring);}
-  .popover.enter{animation:popIn .45s var(--ease) both;}
-  @keyframes popIn{from{opacity:0; transform:translateY(-8px) scale(.95);} to{opacity:1; transform:none;}}
-  .popover-row{display:flex; align-items:center; justify-content:space-between; gap:14px;}
-  .popover-row + .popover-row{margin-top:14px; padding-top:14px; border-top:1px solid var(--line);}
-  .popover-title{font-weight:700; font-size:14.5px;}
-  .popover-hint{margin-top:3px; max-width:24ch; font-size:12px; line-height:1.45; color:var(--ink-soft); text-wrap:pretty;}
-  .popover input[type=time]{border:none; box-shadow:inset 0 0 0 1px var(--line); border-radius:12px; padding:7px 10px; font:500 13px 'Plus Jakarta Sans',sans-serif; background:var(--well); color:var(--ink);}
-  .popover-note{margin-top:12px; font-size:12px; color:var(--ink-soft);}
   .switch{position:relative; width:42px; height:25px; flex-shrink:0;}
   .switch input{opacity:0; width:0; height:0;}
   .slider{position:absolute; inset:0; background:var(--paper-dim); box-shadow:inset 0 0 0 1px var(--line); border-radius:25px; cursor:pointer; transition:background-color .4s var(--ease);}
@@ -372,6 +364,24 @@
   .circle-foot b{letter-spacing:.12em;}
   .circle .confirm-row{margin-top:14px;}
   #circleCard .summary-err{margin:12px 0 0;}
+
+  /* ---- Profil: who you are, how the app behaves, and the way out ---- */
+  .profile-head{display:flex; align-items:center; gap:14px; margin-bottom:18px;}
+  .avatar{flex-shrink:0; width:64px; height:64px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:linear-gradient(140deg, var(--rose), #F0A07E); color:#fff; font:800 26px 'Plus Jakarta Sans',sans-serif; box-shadow:inset 0 1px 0 rgba(255,255,255,.3), 0 18px 30px -18px var(--clay);}
+  .profile-id{min-width:0;}
+  .profile-id .section-h{margin:0; overflow-wrap:anywhere;}
+  .profile-meta{margin:3px 0 0; font-size:13px; line-height:1.45; color:var(--ink-soft);}
+  .profile-card .bento{margin-bottom:4px;}
+  .field-hint{margin:8px 6px 14px; font-size:12px; line-height:1.5; color:var(--ink-soft);}
+  .setting{display:flex; align-items:center; justify-content:space-between; gap:14px; padding:14px 0; border-top:1px solid var(--line);}
+  .setting:first-of-type{border-top:none; padding-top:2px;}
+  .setting:last-of-type{padding-bottom:0;}
+  .setting-title{font-weight:700; font-size:14.5px;}
+  .setting-hint{margin-top:3px; max-width:30ch; font-size:12px; line-height:1.45; color:var(--ink-soft); text-wrap:pretty;}
+  .setting .range-toggle{flex-shrink:0; margin:0;}
+  .setting .btn-ghost-sm{flex-shrink:0; margin-top:0;}
+  .setting input[type=time]{flex-shrink:0; border:none; box-shadow:inset 0 0 0 1px var(--line); border-radius:12px; padding:8px 10px; font:500 14px 'Plus Jakarta Sans',sans-serif; background:var(--well); color:var(--ink);}
+  .btn-soft.danger{background:transparent; box-shadow:inset 0 0 0 1px var(--rose);}
 
   /* ---- The composer: the journal card everything else is arranged around. It gets a wider,
      rose-tinted tray, a soft glow, larger type and a taller writing area than any other card. ---- */
@@ -589,10 +599,8 @@ let selectedMood = null;
 let draftText = null;
 let promptIdx = Math.floor(Math.random()*PROMPTS.length);
 let chartRange = 7;
-let showSettings = false;
 let introPlayed = false;
 let entriesReady = false;
-let popoverFresh = false;
 let nudgeShown = false;
 let editingIdx = null;
 let stashedDraft = null;
@@ -760,6 +768,7 @@ function pickPrompt(notes){
 function syncPromptOnce(){ if(promptSynced) return; promptSynced=true; promptIdx=pickPrompt(); }
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 3200); }
 function getTheme(){ return document.documentElement.getAttribute('data-theme')==='dark' ? 'dark' : 'light'; }
+function setTheme(next){ if(getTheme()!==next) toggleTheme(); }
 function toggleTheme(){
   const next = getTheme()==='dark' ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', next);
@@ -1009,8 +1018,8 @@ const TOUR = [
   {tab:'today', target:['.photo-bar'], title:'Tambahkan foto', text:'<b>Kamera</b> untuk memotret langsung, <b>Galeri</b> untuk memilih foto yang sudah ada. Satu catatan muat sampai empat foto, dan boleh hanya foto tanpa tulisan.'},
   {tab:'today', target:['.mood-block'], title:'Tandai perasaanmu', text:'Pilih satu yang paling pas untuk hari ini. Tidak ada jawaban salah, dan boleh kamu ganti kapan saja kalau suasana hatimu berubah.'},
   {tab:'today', target:['.save'], title:'Simpan', text:'Tekan ini kalau sudah. Catatanmu langsung muncul di <b>Catatan hari ini</b>, dan ikon pensil di sana untuk mengubahnya. Tulisan yang belum disimpan tetap diingat kalau halaman tertutup.'},
-  {tab:'today', target:['.topbar-actions'], title:'Streak, pengingat, dan tema', text:'Api menunjukkan berapa hari kamu menulis dalam seminggu terakhir. <b>Lonceng</b> untuk pengingat harian dan keluar akun. <b>Bulan</b> untuk beralih ke mode gelap.'},
-  {tab:'today', target:['.tabs'], title:'Tiga halaman', text:'<b>Hari ini</b> untuk menulis, <b>Dashboard</b> untuk melihat polamu, <b>Riwayat</b> untuk membaca lagi semua catatan. Yuk, lihat Dashboard.'},
+  {tab:'today', target:['.topbar-actions'], title:'Streak dan tema', text:'Api menunjukkan berapa hari kamu menulis dalam seminggu terakhir. Ikon <b>bulan</b> di sebelahnya untuk beralih ke mode gelap.'},
+  {tab:'today', target:['.tabs'], title:'Empat halaman', text:'<b>Hari ini</b> untuk menulis, <b>Dashboard</b> untuk melihat polamu, <b>Riwayat</b> untuk membaca lagi semua catatan, dan <b>Profil</b> untuk pengaturan. Yuk, lihat Dashboard.'},
   {tab:'trend', target:['.bento'], title:'Ringkasan perjalananmu', text:'Streak terpanjangmu, jumlah catatan bulan ini, dan hari yang biasanya terasa paling berat.'},
   {tab:'trend', target:['#circleCard'], title:'Streak bareng', text:'Ajak teman atau keluarga menulis bersama. Buat grup, bagikan <b>kode undangan</b>-nya, dan streak naik setiap hari kalian semua menulis. Mereka hanya melihat nama dan sudah-belum menulis, bukan isi catatanmu.'},
   {tab:'trend', target:['.tab-trend .col-main > .card'], title:'Perjalanan perasaanmu', text:'Grafik mood 7 atau 30 hari terakhir. Di bawahnya ada pengamatan mingguan dari AI, kalau fitur itu diaktifkan di server ini.'},
@@ -1018,7 +1027,9 @@ const TOUR = [
   {tab:'history', target:['.search'], title:'Cari dan saring', text:'Ketik kata apa saja untuk mencari. Tombol di bawahnya menyaring berdasarkan <b>favorit</b>, mood, atau #tag yang pernah kamu pakai.'},
   {tab:'history', target:['#histList', '.tab-history .card'], title:'Semua catatanmu', text:'Di sini semua yang pernah kamu tulis. <b>Bintang</b> untuk menandai favorit, tempat sampah untuk menghapus, dan ketuk foto untuk melihatnya lebih besar.'},
   {tab:'history', target:['.actions'], title:'Bawa pulang ceritamu', text:'Ekspor jadi teks, cetak atau simpan sebagai PDF, dan <b>cadangkan</b> ke file .json yang bisa dipulihkan lagi kapan saja, lengkap dengan fotonya.'},
-  {tab:'today', title:'Sekarang giliranmu', text:'Itu saja. Tidak perlu panjang, yang penting kamu mampir. Tur ini bisa dibuka lagi lewat ikon lonceng kapan pun kamu mau.'},
+  {tab:'profile', target:['.profile-card'], title:'Profilmu', text:'Nama panggilanmu, yang juga dilihat teman di streak bareng, dan ringkasan perjalananmu. Di bawahnya kamu bisa mengganti kata sandi.'},
+  {tab:'profile', target:['.settings-card'], title:'Pengaturan', text:'Pengingat harian, tema, dan mode menulis diatur di sini. Tombol <b>Keluar</b> ada di kartu Akun di bawahnya.'},
+  {tab:'today', title:'Sekarang giliranmu', text:'Itu saja. Tidak perlu panjang, yang penting kamu mampir. Tur ini bisa dibuka lagi dari halaman Profil kapan pun kamu mau.'},
 ];
 let tourWatch = null;
 function startTour(){
@@ -1098,21 +1109,9 @@ function endTour(finished){
   if(tab!=='today') setTab('today');
   window.scrollTo({top:0, behavior:'instant'});
 }
-function replayTour(){ closeSettings(false); startTour(); }
 
 // ---------- Today tab ----------
 function syncDraft(){ const ta=document.getElementById('entryText'); if(ta) draftText=ta.value; }
-function openSettings(){ syncDraft(); showSettings = !showSettings; popoverFresh = showSettings; render(); }
-function closeSettings(refocus){
-  if(!showSettings) return;
-  syncDraft(); showSettings = false; render();
-  if(refocus) document.querySelector('.bell-btn')?.focus();
-}
-document.addEventListener('click', e=>{
-  if(!showSettings) return;
-  const inside = e.composedPath().some(n=>n.classList && (n.classList.contains('popover') || n.classList.contains('bell-btn')));
-  if(!inside) closeSettings(false);
-});
 document.addEventListener('keydown', e=>{
   if(tourOn){
     if(e.key==='Escape') endTour(true);
@@ -1123,27 +1122,110 @@ document.addEventListener('keydown', e=>{
   if(e.key!=='Escape') return;
   if(document.getElementById('camera')) closeCamera();
   else if(document.getElementById('lightbox')) closePhoto();
-  else closeSettings(true);
 });
-function renderSettingsPanel(fresh){
-  const notifSupported = 'Notification' in window;
+// ---------- Profil: profile, settings and sign-out in one place ----------
+function formError(id, msg){ const el=document.getElementById(id); if(el){ el.textContent=msg; el.hidden=false; } }
+const OFFLINE_NOTE = 'Azzifa belum bisa terhubung ke server. Coba lagi sebentar lagi, ya.';
+async function saveName(ev){
+  ev.preventDefault();
+  document.getElementById('nameErr').hidden = true;
+  const name = document.getElementById('profName').value.trim();
+  try{
+    const res = await api('/api/account/profile', {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name})});
+    const data = await res.json();
+    if(!res.ok){ formError('nameErr', data.error || 'Namanya belum tersimpan. Coba lagi sebentar lagi, ya.'); return; }
+    me = {...me, name:data.name};
+    showToast('Namamu sudah diperbarui.'); render();
+    if(circles.length) loadCircles();   // friends see the new name there
+  }catch(e){ formError('nameErr', OFFLINE_NOTE); }
+}
+async function savePassword(ev){
+  ev.preventDefault();
+  document.getElementById('pwErr').hidden = true;
+  const current = document.getElementById('pwCurrent').value, next = document.getElementById('pwNext').value;
+  try{
+    const res = await api('/api/account/password', JSON_POST({current, next}));
+    const data = await res.json();
+    if(!res.ok){ formError('pwErr', data.error || 'Kata sandinya belum berhasil diganti. Coba lagi sebentar lagi, ya.'); return; }
+    ev.target.reset();
+    showToast('Kata sandimu sudah diganti.');
+  }catch(e){ formError('pwErr', OFFLINE_NOTE); }
+}
+function renderProfile(){
+  const days = new Set(entries.map(e=>e.date)).size;
+  const dark = getTheme()==='dark';
   return `
-    <div class="popover${fresh?' enter':''}" role="dialog" aria-label="Pengingat harian">
-      <div class="popover-row">
-        <div>
-          <div class="popover-title">Pengingat harian</div>
-          <div class="popover-hint">Notifikasi muncul di jam ini kalau kamu belum check-in, selama tab ini masih terbuka.</div>
+    <div class="col col-main">
+    <section class="card profile-card">
+      <div class="profile-head">
+        <span class="avatar" aria-hidden="true">${esc([...(me.name||'?')][0].toUpperCase())}</span>
+        <div class="profile-id">
+          <h2 class="section-h">${esc(me.name)}</h2>
+          <p class="profile-meta">@${esc(me.username)}${me.createdAt ? ` · bergabung ${fmtDate(me.createdAt)}` : ''}</p>
         </div>
+      </div>
+      <div class="bento three">
+        <div class="stat"><b>${totalNotes()}</b><span>Catatan</span></div>
+        <div class="stat"><b>${days}</b><span>Hari tercatat</span></div>
+        <div class="stat"><b>${longestStreakEver()}</b><span>Streak terpanjang</span></div>
+      </div>
+      <form onsubmit="saveName(event)">
+        <label class="field"><span>Nama panggilan</span><input id="profName" maxlength="30" required autocomplete="nickname" value="${escAttr(me.name)}"></label>
+        <p class="field-hint">Nama ini yang dilihat temanmu di streak bareng.</p>
+        <p class="summary-err" id="nameErr" role="alert" hidden></p>
+        <button class="btn-soft" type="submit">Simpan nama</button>
+      </form>
+    </section>
+    <section class="card pw-card">
+      <h2 class="section-h">Ganti kata sandi</h2>
+      <form onsubmit="savePassword(event)">
+        <input type="text" autocomplete="username" value="${escAttr(me.username)}" hidden>
+        <label class="field" style="margin-top:0"><span>Kata sandi sekarang</span><input id="pwCurrent" type="password" autocomplete="current-password" required></label>
+        <label class="field"><span>Kata sandi baru</span><input id="pwNext" type="password" autocomplete="new-password" required minlength="8"></label>
+        <p class="field-hint">Minimal 8 karakter. Perangkat lain yang masih masuk dengan kata sandi lama akan dikeluarkan.</p>
+        <p class="summary-err" id="pwErr" role="alert" hidden></p>
+        <button class="btn-soft" type="submit">Ganti kata sandi</button>
+      </form>
+    </section>
+    </div>
+    <div class="col col-side">
+    <section class="card settings-card">
+      <span class="eyebrow">Pengaturan</span>
+      <h2 class="section-h">Atur sesukamu</h2>
+      <div class="setting">
+        <div><div class="setting-title">Pengingat harian</div><div class="setting-hint">Notifikasi muncul di jam pilihanmu kalau kamu belum menulis, selama tab ini masih terbuka.</div></div>
         <label class="switch"><input type="checkbox" ${reminder.enabled?'checked':''} onchange="toggleReminder(this.checked)" aria-label="Aktifkan pengingat harian"><span class="slider"></span></label>
       </div>
-      <div class="popover-row"><span>Jam pengingat</span><input type="time" value="${reminder.time}" onchange="setReminderTime(this.value)"></div>
-      <div class="popover-row"><span>Tur fitur</span><button class="btn-ghost-sm" style="margin-top:0" onclick="replayTour()">Lihat lagi</button></div>
-      <div class="popover-row">
-        <div><div class="popover-title">${esc(me.name)}</div><div class="popover-hint">@${esc(me.username)}</div></div>
-        <button class="btn-ghost-sm" style="margin-top:0" onclick="logout()">Keluar</button>
+      <div class="setting">
+        <div><div class="setting-title">Jam pengingat</div>${'Notification' in window ? '' : '<div class="setting-hint">Browser ini belum mendukung notifikasi, jadi yang mengingatkan hanya sapaan di halaman.</div>'}</div>
+        <input type="time" value="${reminder.time}" onchange="setReminderTime(this.value)" aria-label="Jam pengingat">
       </div>
-      ${!notifSupported ? '<div class="popover-note">Notifikasi tidak didukung di browser ini, jadi pengingat hanya berupa pesan di sini.</div>' : ''}
-    </div>`;
+      <div class="setting">
+        <div><div class="setting-title">Tema</div><div class="setting-hint">Terang untuk siang, gelap untuk malam.</div></div>
+        <div class="range-toggle" role="group" aria-label="Tema">
+          <button class="${dark?'':'active'}" aria-pressed="${!dark}" onclick="setTheme('light')">Terang</button>
+          <button class="${dark?'active':''}" aria-pressed="${dark}" onclick="setTheme('dark')">Gelap</button>
+        </div>
+      </div>
+      <div class="setting">
+        <div><div class="setting-title">Mode menulis</div><div class="setting-hint">Yang terbuka duluan di Hari ini.</div></div>
+        <div class="range-toggle" role="group" aria-label="Mode menulis">
+          <button class="${dayMode==='daily'?'active':''}" aria-pressed="${dayMode==='daily'}" onclick="setDayMode('daily')">Harian</button>
+          <button class="${dayMode==='checkup'?'active':''}" aria-pressed="${dayMode==='checkup'}" onclick="setDayMode('checkup')">Check Up</button>
+        </div>
+      </div>
+      <div class="setting">
+        <div><div class="setting-title">Tur fitur</div><div class="setting-hint">Keliling lagi melihat semua fitur Azzifa.</div></div>
+        <button class="btn-ghost-sm" onclick="startTour()">Lihat lagi</button>
+      </div>
+    </section>
+    <section class="card account-card">
+      <h2 class="section-h">Akun</h2>
+      <p class="summary-hint">Kamu masuk sebagai <b>@${esc(me.username)}</b>. Catatanmu tetap tersimpan dan menunggu saat kamu kembali.</p>
+      <button class="btn-soft danger" onclick="logout()">Keluar</button>
+    </section>
+    </div>
+  `;
 }
 function renderToday(){
   const notes = todayNotes();
@@ -1480,7 +1562,7 @@ async function submitAuth(ev){
 }
 // Clears everything that belonged to the previous account before showing the sign-in screen.
 function signedOut(){
-  me=null; entries=[]; circles=[]; showSettings=false; draftText=null; selectedMood=null; editingIdx=null;
+  me=null; entries=[]; circles=[]; draftText=null; selectedMood=null; editingIdx=null;
   draftPhotos=[]; stashedPhotos=null; dayMode='daily'; closePhoto(); closeCamera(); endTour(false);
   histQuery=''; histMood=null; histTag=null; histFav=false; histDate=null; importPending=null;
   dashboardInsight=null; insightWeekCached=null; summaryText=null; summaryAt=null;
@@ -1872,7 +1954,6 @@ function render(){
   const authed = !!me;
   const checkins=rollingCheckins(7);
   const intro = introPlayed ? '' : ' intro'; introPlayed = true;
-  const pfresh = popoverFresh; popoverFresh = false;
   const animate = animateContent && entriesReady && !tourOn; if(animateContent && entriesReady) animateContent = false;
   if(revealObs){ revealObs.disconnect(); revealObs=null; }
   const nToday = todayNotes().length;
@@ -1892,11 +1973,9 @@ function render(){
           <span class="date">${dateLabel}</span>
         </div>
         <div class="topbar-actions">
-          ${authed ? `<div class="streak-pill" title="${checkins} dari 7 hari terakhir"><span class="fire">🔥</span> <b>${checkins}</b>/7 hari</div>
-          <button class="icon-btn bell-btn${showSettings?' on':''}" onclick="openSettings()" title="Pengingat dan akun" aria-label="Pengingat dan akun" aria-expanded="${showSettings}">${ICONS.bell}</button>` : ''}
+          ${authed ? `<div class="streak-pill" title="${checkins} dari 7 hari terakhir"><span class="fire">🔥</span> <b>${checkins}</b>/7 hari</div>` : ''}
           <button class="icon-btn" onclick="toggleTheme()" title="Ganti tema" aria-label="Ganti tema">${getTheme()==='dark'?ICONS.sun:ICONS.moon}</button>
         </div>
-        ${authed && showSettings ? renderSettingsPanel(pfresh) : ''}
       </div>
       <div class="hero-grid">
       <div class="hero-copy">
@@ -1919,10 +1998,11 @@ function render(){
         <button class="${tab==='today'?'active':''}"${tab==='today'?' aria-current="page"':''} onclick="setTab('today')">Hari ini</button>
         <button class="${tab==='trend'?'active':''}"${tab==='trend'?' aria-current="page"':''} onclick="setTab('trend')">Dashboard</button>
         <button class="${tab==='history'?'active':''}"${tab==='history'?' aria-current="page"':''} onclick="setTab('history')">Riwayat</button>
+        <button class="${tab==='profile'?'active':''}"${tab==='profile'?' aria-current="page"':''} onclick="setTab('profile')">Profil</button>
       </nav>` : ''}
     </header>
     <main class="content tab-${authed ? tab : 'auth'}">
-      ${!authed ? renderAuth() : tab==='today' ? renderToday() : tab==='trend' ? renderTrend() : renderHistory()}
+      ${!authed ? renderAuth() : tab==='today' ? renderToday() : tab==='trend' ? renderTrend() : tab==='history' ? renderHistory() : renderProfile()}
     </main>
   `;
   renderMicButtons();

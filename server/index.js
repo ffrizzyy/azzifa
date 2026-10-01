@@ -55,6 +55,7 @@ app.use('/api', auth.requireUser);
 // "Today" is the caller's own date, not the server's (see day.js).
 app.use('/api', (req, res, next) => { req.today = clientDay(req); next(); });
 app.get('/api/me', (req, res) => res.json(req.user));
+app.use('/api/account', auth.account);
 app.use('/api/circles', circles.router);
 app.use('/api/photos', photos.router);
 
@@ -351,11 +352,21 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Azzifa berjalan di http://localhost:${PORT}`);
 });
 
-// A platform stops the app with SIGTERM on every deploy and restart. Finish the requests in
-// flight and close the database cleanly, so nothing half-written is left behind.
-function shutDown() {
-  server.close(() => { db.close(); process.exit(0); });
-  setTimeout(() => process.exit(0), 10000).unref(); // a stuck connection must not block the restart
+// A platform stops the app with SIGTERM on every deploy and restart; a terminal sends SIGINT,
+// and Windows sends SIGHUP or SIGBREAK when its console window goes away. In every case: finish
+// the requests in flight, then close the database before the process exits. The database must
+// never still be open when Node tears itself down — its native module has been seen to abort
+// there, which turns a normal stop into a crash report.
+let stopping = false;
+function closeAndExit() {
+  try { db.close(); } catch (e) { /* already closed */ }
+  process.exit(0);
 }
-process.on('SIGTERM', shutDown);
-process.on('SIGINT', shutDown);
+function shutDown() {
+  if (stopping) return;
+  stopping = true;
+  server.close(closeAndExit);
+  server.closeIdleConnections(); // keep-alive sockets with nothing in flight would hold close() open
+  setTimeout(closeAndExit, 10000).unref(); // a stuck connection must not block the restart
+}
+['SIGTERM', 'SIGINT', 'SIGHUP', 'SIGBREAK'].forEach((signal) => process.on(signal, shutDown));

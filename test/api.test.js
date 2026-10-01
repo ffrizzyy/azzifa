@@ -247,6 +247,32 @@ test('Harian is the mode a new account starts in', async () => {
   assert.equal((await c('GET', '/api/settings')).data.dayMode, 'checkup');
 });
 
+test('profile: the display name can be changed, and friends see the new one', async () => {
+  const rudi = await register('rudi');
+  const me = (await rudi('GET', '/api/me')).data;
+  assert.equal(me.name, 'Rudi');
+  assert.equal(typeof me.createdAt, 'number');
+  assert.equal((await rudi('PATCH', '/api/account/profile', { name: '   ' })).status, 400);
+  assert.equal((await rudi('PATCH', '/api/account/profile', { name: '  Rudi Hartono  ' })).data.name, 'Rudi Hartono');
+  assert.equal((await rudi('GET', '/api/me')).data.name, 'Rudi Hartono');
+  const circle = (await rudi('POST', '/api/circles', { name: 'Berdua' })).data[0];
+  assert.equal(circle.members[0].name, 'Rudi Hartono');
+  assert.equal((await client()('PATCH', '/api/account/profile', { name: 'x' })).status, 401);
+});
+
+test('profile: changing the password needs the current one and signs other devices out', async () => {
+  const laptop = await register('tika');
+  const phone = client();
+  assert.equal((await phone('POST', '/api/auth/login', { username: 'tika', password: 'rahasia-tika-1' })).status, 200);
+  assert.equal((await laptop('POST', '/api/account/password', { current: 'bukan-ini-1', next: 'sandi-baru-123' })).status, 403);
+  assert.equal((await laptop('POST', '/api/account/password', { current: 'rahasia-tika-1', next: 'pendek' })).status, 400);
+  assert.equal((await laptop('POST', '/api/account/password', { current: 'rahasia-tika-1', next: 'sandi-baru-123' })).status, 200);
+  assert.equal((await laptop('GET', '/api/me')).status, 200, 'the device that changed it stays signed in');
+  assert.equal((await phone('GET', '/api/me')).status, 401, 'the other device is signed out');
+  assert.equal((await client()('POST', '/api/auth/login', { username: 'tika', password: 'rahasia-tika-1' })).status, 401);
+  assert.equal((await client()('POST', '/api/auth/login', { username: 'tika', password: 'sandi-baru-123' })).status, 200);
+});
+
 test('the first-visit tour is offered once per account', async () => {
   const c = await register('putu');
   assert.equal((await c('GET', '/api/settings')).data.tourDone, false);
