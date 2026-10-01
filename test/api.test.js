@@ -328,3 +328,83 @@ test('pictures: upload, attach to a note, and stay private to their owner', asyn
   assert.equal((await omar.raw(`/api/photos/${b}`)).status, 200);
   assert.equal((await nina.raw(`/api/photos/${b}`)).status, 404);
 });
+
+test('forgot password: the personal question sets a new password', async () => {
+  const laptop = client();
+  const question = 'Apa nama hewan peliharaan pertamamu?';
+  assert.equal((await laptop('POST', '/api/auth/register', { username: 'umar', password: 'rahasia-umar-1', question, answer: 'x' })).status, 400, 'an answer too short to mean anything');
+  assert.equal((await laptop('POST', '/api/auth/register', { username: 'umar', password: 'rahasia-umar-1', question: 'Apa?', answer: 'Si Putih' })).status, 400);
+  assert.equal((await laptop('POST', '/api/auth/register', { username: 'umar', name: 'Umar', password: 'rahasia-umar-1', question, answer: 'Si Putih' })).status, 200);
+  const me = (await laptop('GET', '/api/me')).data;
+  assert.equal(me.question, question);
+  assert.deepEqual(Object.keys(me).sort(), ['createdAt', 'id', 'name', 'question', 'username'], 'the answer never leaves the server');
+  const phone = client();
+  assert.equal((await phone('POST', '/api/auth/login', { username: 'umar', password: 'rahasia-umar-1' })).status, 200);
+
+  const fresh = client();
+  assert.equal((await fresh('GET', '/api/auth/question?username=UMAR')).data.question, question);
+  const decoy = (await fresh('GET', '/api/auth/question?username=tidak-ada')).data.question;
+  assert.equal(typeof decoy, 'string', 'an unknown name still gets a question');
+  assert.equal((await fresh('GET', '/api/auth/question?username=tidak-ada')).data.question, decoy, 'and always the same one');
+
+  assert.equal((await fresh('POST', '/api/auth/reset', { username: 'umar', answer: 'Si Hitam', password: 'sandi-baru-456' })).status, 401);
+  assert.equal((await fresh('POST', '/api/auth/reset', { username: 'tidak-ada', answer: 'Si Putih', password: 'sandi-baru-456' })).status, 401, 'an unknown name answers the same way');
+  assert.equal((await fresh('POST', '/api/auth/reset', { username: 'umar', answer: 'Si Putih', password: 'pendek' })).status, 400);
+  // Typed the way a person would a year later: different case, no space, stray punctuation.
+  const reset = await fresh('POST', '/api/auth/reset', { username: 'UMAR', answer: ' siPUTIH! ', password: 'sandi-baru-456' });
+  assert.equal(reset.status, 200);
+  assert.equal((await fresh('GET', '/api/me')).data.username, 'umar', 'the reset signs you in');
+  assert.equal((await laptop('GET', '/api/me')).status, 401, 'every earlier session is ended');
+  assert.equal((await phone('GET', '/api/me')).status, 401);
+  assert.equal((await client()('POST', '/api/auth/login', { username: 'umar', password: 'rahasia-umar-1' })).status, 401);
+  assert.equal((await client()('POST', '/api/auth/login', { username: 'umar', password: 'sandi-baru-456' })).status, 200);
+});
+
+test('guessing a personal answer is cut off after a few tries', async () => {
+  await client()('POST', '/api/auth/register', { username: 'xavi', password: 'rahasia-xavi-1', question: 'Apa nama sekolah dasarmu?', answer: 'SD Mawar' });
+  const guesser = client();
+  let last;
+  for (let i = 0; i < 6; i++) last = await guesser('POST', '/api/auth/reset', { username: 'xavi', answer: `tebakan ${i}`, password: 'sandi-baru-456' });
+  assert.equal(last.status, 429);
+  assert.equal((await guesser('POST', '/api/auth/reset', { username: 'xavi', answer: 'SD Mawar', password: 'sandi-baru-456' })).status, 429, 'even the right answer has to wait');
+  assert.equal((await client()('POST', '/api/auth/login', { username: 'xavi', password: 'rahasia-xavi-1' })).status, 200, 'signing in normally is unaffected');
+});
+
+test('the personal question can be set or changed from the account, with the password', async () => {
+  const c = await register('vera');   // made without a question, like an account from before the feature
+  assert.equal((await c('GET', '/api/me')).data.question, null);
+  assert.equal((await client()('POST', '/api/auth/reset', { username: 'vera', answer: 'apa saja', password: 'sandi-baru-456' })).status, 401, 'no question, no reset');
+  const body = { question: '  Apa nama warung   langgananku? ', answer: 'Bu Tini' };
+  assert.equal((await c('POST', '/api/account/question', { ...body, password: 'bukan-ini-123' })).status, 403);
+  assert.equal((await c('POST', '/api/account/question', { ...body, answer: '', password: 'rahasia-vera-1' })).status, 400);
+  assert.equal((await c('POST', '/api/account/question', { ...body, password: 'rahasia-vera-1' })).data.question, 'Apa nama warung langgananku?');
+  assert.equal((await c('GET', '/api/me')).data.question, 'Apa nama warung langgananku?');
+  await c('POST', '/api/account/question', { question: 'Apa nama sekolah dasarmu?', answer: 'SD Melati', password: 'rahasia-vera-1' });
+  assert.equal((await client()('POST', '/api/auth/reset', { username: 'vera', answer: 'Bu Tini', password: 'sandi-baru-456' })).status, 401, 'the old answer is replaced');
+  assert.equal((await client()('POST', '/api/auth/reset', { username: 'vera', answer: 'sd melati', password: 'sandi-baru-456' })).status, 200);
+  assert.equal((await client()('POST', '/api/account/question', { ...body, password: 'x' })).status, 401, 'needs a session');
+});
+
+test('deleting an account removes everything it owned and frees the name', async () => {
+  const wina = await register('wina');
+  const yoga = await register('yoga');
+  const picture = (await upload(wina)).data.id;
+  await wina('PUT', `/api/entries/${today}`, { notes: [note('catatan wina', { photos: [picture] })] });
+  const shared = (await wina('POST', '/api/circles', { name: 'Berdua' })).data[0];
+  await yoga('POST', '/api/circles/join', { code: shared.code });
+  const solo = (await wina('POST', '/api/circles', { name: 'Sendiri' })).data.find((c) => c.name === 'Sendiri');
+
+  assert.equal((await wina('DELETE', '/api/account', { password: 'salah-salah-1' })).status, 403);
+  assert.equal((await wina('GET', '/api/me')).status, 200, 'a wrong password deletes nothing');
+  assert.equal((await wina('DELETE', '/api/account', { password: 'rahasia-wina-1' })).status, 200);
+  assert.equal((await wina('GET', '/api/me')).status, 401);
+  assert.equal((await client()('POST', '/api/auth/login', { username: 'wina', password: 'rahasia-wina-1' })).status, 401);
+
+  const left = (await yoga('GET', '/api/circles')).data;
+  assert.deepEqual(left.map((c) => c.members.map((m) => m.name)), [['Yoga']], 'she is gone from the shared circle');
+  assert.equal((await yoga('POST', '/api/circles/join', { code: solo.code })).status, 404, 'a circle with nobody left is removed');
+
+  const again = await register('wina');
+  assert.equal((await again('GET', '/api/entries')).data.length, 0, 'the name is free, and starts empty');
+  assert.equal((await again.raw(`/api/photos/${picture}`)).status, 404);
+});

@@ -11,6 +11,7 @@ const SESSION_MS = 60 * 24 * 60 * 60 * 1000; // 60 days
 const USERNAME_RE = /^[a-z0-9_.-]{3,24}$/;
 
 const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex');
+const sameHex = (a, b) => a.length === b.length && crypto.timingSafeEqual(Buffer.from(a, 'hex'), Buffer.from(b, 'hex'));
 const hashPassword = async (password, salt) => (await scrypt(password, salt, 64)).toString('hex');
 // ALLOW_SIGNUP=false closes registration once everyone is in. The very first account can always
 // be created, otherwise a fresh install could never be used.
@@ -20,7 +21,7 @@ const signupOpen = () => userCount() === 0 || String(process.env.ALLOW_SIGNUP ||
 // SIGNUP_CODE turns registration into invite-only: an account can only be created by someone
 // who was given the code. On a server open to the internet this is what keeps strangers out.
 const signupCode = () => String(process.env.SIGNUP_CODE || '');
-const codeMatches = (given) => crypto.timingSafeEqual(Buffer.from(sha256(String(given || ''))), Buffer.from(sha256(signupCode())));
+const codeMatches = (given) => sameHex(sha256(String(given || '')), sha256(signupCode()));
 
 // Express 4 does not catch a rejected promise from an async handler: without this the request
 // would hang and the rejection would take the whole process down.
@@ -44,6 +45,40 @@ function startSession(req, res, userId) {
   db.prepare('INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)').run(sha256(token), userId, Date.now() + SESSION_MS);
   setSessionCookie(req, res, token, SESSION_MS);
 }
+
+/** Replaces a user's password. Used by the routes below and by scripts/reset-password.js. */
+async function setPassword(userId, password) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  db.prepare('UPDATE users SET pass_hash = ?, pass_salt = ? WHERE id = ?').run(await hashPassword(password, salt), salt, userId);
+}
+async function passwordMatches(userId, password) {
+  const user = db.prepare('SELECT pass_hash, pass_salt FROM users WHERE id = ?').get(userId);
+  return !!user && sameHex(await hashPassword(String(password || ''), user.pass_salt), user.pass_hash);
+}
+
+// The personal question is the "forgot my password" path: there is no email on file, so a
+// question only the account holder can answer takes its place. The answer is treated like a
+// second password — hashed with scrypt and its own salt, never stored or sent back — but
+// compared forgivingly: "Si Putih", "si putih" and "siputih!" are the same answer.
+const normalizeAnswer = (s) => String(s || '').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+const cleanQuestion = (s) => String(s || '').trim().replace(/\s+/g, ' ').slice(0, 120);
+const QUESTION_PROBLEM = { error: 'Pertanyaan pribadinya minimal 5 karakter dan jawabannya minimal 2 huruf, ya.' };
+const validQuestion = (question, answer) => cleanQuestion(question).length >= 5 && normalizeAnswer(answer).length >= 2 && String(answer).length <= 100;
+async function setQuestion(userId, question, answer) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  db.prepare('UPDATE users SET secret_question = ?, secret_hash = ?, secret_salt = ? WHERE id = ?')
+    .run(cleanQuestion(question), await hashPassword(normalizeAnswer(answer), salt), salt, userId);
+}
+// Shown for a name that has no account (or no question), picked by the name so it is always the
+// same one: the sign-in screen must not reveal which usernames exist.
+const DECOY_QUESTIONS = [
+  'Apa nama hewan peliharaan pertamamu?',
+  'Apa makanan favoritmu waktu kecil?',
+  'Siapa nama sahabat masa kecilmu?',
+  'Apa nama sekolah dasarmu?',
+  'Siapa nama guru yang paling kamu ingat?',
+];
+const decoyQuestion = (username) => DECOY_QUESTIONS[parseInt(sha256(username).slice(0, 8), 16) % DECOY_QUESTIONS.length];
 
 /**
  * A small in-memory attempt counter: `max` hits per `windowMs` for each key. A restart clears
@@ -74,13 +109,21 @@ const loginFailures = limiter(8, 10 * 60 * 1000);
 const signups = limiter(Number(process.env.SIGNUPS_PER_HOUR) || 10, 60 * 60 * 1000);
 // Guessing the sign-up code: 10 wrong tries from one address, then a 10 minute pause.
 const codeGuesses = limiter(10, 10 * 60 * 1000);
+// Guessing a personal answer is far easier than guessing a password, so it gets far fewer
+// tries: 5 an hour for one account from one address, and 15 an hour for the account overall.
+const answerTries = limiter(5, 60 * 60 * 1000);
+const answerTriesPerAccount = limiter(15, 60 * 60 * 1000);
+const TOO_MANY = { error: 'Terlalu banyak percobaan. Istirahat dulu sekitar 10 menit, lalu coba lagi, ya.' };
+const WEAK_PASSWORD = { error: 'Kata sandinya minimal 8 karakter, ya. Biar jurnalmu aman.' };
+const validPassword = (p) => p.length >= 8 && p.length <= 200;
 
 /** Rejects the request with 401 unless it carries a live session; sets req.user otherwise. */
 function requireUser(req, res, next) {
   const token = readCookie(req, COOKIE);
   if (token) {
     const user = db.prepare(`
-      SELECT u.id, u.username, u.name, u.created_at AS createdAt FROM sessions s JOIN users u ON u.id = s.user_id
+      SELECT u.id, u.username, u.name, u.created_at AS createdAt, u.secret_question AS question
+      FROM sessions s JOIN users u ON u.id = s.user_id
       WHERE s.token_hash = ? AND s.expires_at > ?
     `).get(sha256(token), Date.now());
     if (user) { req.user = user; return next(); }
@@ -100,7 +143,7 @@ router.post('/register', wrap(async (req, res) => {
   if (signups.blocked(req.ip)) return res.status(429).json({ error: 'Sudah banyak akun dibuat dari sini. Coba lagi nanti, ya.' });
   const body = req.body || {};
   if (signupCode()) {
-    if (codeGuesses.blocked(req.ip)) return res.status(429).json({ error: 'Terlalu banyak percobaan. Istirahat dulu sekitar 10 menit, lalu coba lagi, ya.' });
+    if (codeGuesses.blocked(req.ip)) return res.status(429).json(TOO_MANY);
     if (!codeMatches(body.code)) {
       codeGuesses.hit(req.ip);
       return res.status(403).json({ error: 'Kode pendaftarannya belum cocok. Minta kodenya ke pemilik server ini, ya.' });
@@ -112,9 +155,10 @@ router.post('/register', wrap(async (req, res) => {
   if (!USERNAME_RE.test(username)) {
     return res.status(400).json({ error: 'Nama pengguna perlu 3-24 karakter: huruf kecil, angka, titik, strip, atau garis bawah.' });
   }
-  if (password.length < 8 || password.length > 200) {
-    return res.status(400).json({ error: 'Kata sandinya minimal 8 karakter, ya. Biar jurnalmu aman.' });
-  }
+  if (!validPassword(password)) return res.status(400).json(WEAK_PASSWORD);
+  // The page always asks for a personal question; when one is sent it has to be usable.
+  const wantsQuestion = body.question || body.answer;
+  if (wantsQuestion && !validQuestion(body.question, body.answer)) return res.status(400).json(QUESTION_PROBLEM);
   const taken = { error: 'Nama pengguna itu sudah ada yang pakai. Coba nama lain, ya.' };
   if (db.prepare('SELECT 1 FROM users WHERE username = ?').get(username)) return res.status(409).json(taken);
   const salt = crypto.randomBytes(16).toString('hex');
@@ -137,6 +181,7 @@ router.post('/register', wrap(async (req, res) => {
     throw e;
   }
   signups.hit(req.ip);
+  if (wantsQuestion) await setQuestion(userId, body.question, body.answer);
   startSession(req, res, userId);
   res.json({ id: Number(userId), username, name });
 }));
@@ -146,18 +191,50 @@ router.post('/login', wrap(async (req, res) => {
   const username = String(body.username || '').trim().toLowerCase();
   const password = String(body.password || '');
   const key = `${username}|${req.ip}`;
-  if (loginFailures.blocked(key)) {
-    return res.status(429).json({ error: 'Terlalu banyak percobaan. Istirahat dulu sekitar 10 menit, lalu coba lagi, ya.' });
-  }
+  if (loginFailures.blocked(key)) return res.status(429).json(TOO_MANY);
   const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
   // Hash even when the user does not exist, so the response time does not reveal which names are taken.
   const hash = await hashPassword(password, user ? user.pass_salt : 'no-such-user');
-  const ok = !!user && crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(user.pass_hash, 'hex'));
+  const ok = !!user && sameHex(hash, user.pass_hash);
   if (!ok) {
     loginFailures.hit(key);
     return res.status(401).json({ error: 'Nama pengguna atau kata sandinya belum cocok. Coba lagi pelan-pelan, ya.' });
   }
   loginFailures.clear(key);
+  startSession(req, res, user.id);
+  res.json({ id: user.id, username: user.username, name: user.name });
+}));
+
+// Forgot password, step 1: which question belongs to this username. An unknown name gets a
+// plausible question too (always the same one), so this cannot be used to find out who has an account.
+router.get('/question', (req, res) => {
+  const username = String(req.query.username || '').trim().toLowerCase();
+  const user = db.prepare('SELECT secret_question FROM users WHERE username = ?').get(username);
+  res.json({ question: (user && user.secret_question) || decoyQuestion(username) });
+});
+
+// Forgot password, step 2: the right answer sets a new password, signs in, and ends every
+// other session. Wrong answers are tightly limited.
+router.post('/reset', wrap(async (req, res) => {
+  const body = req.body || {};
+  const username = String(body.username || '').trim().toLowerCase();
+  const password = String(body.password || '');
+  const key = `${username}|${req.ip}`;
+  if (answerTries.blocked(key) || answerTriesPerAccount.blocked(username)) {
+    return res.status(429).json({ error: 'Terlalu banyak percobaan untuk akun ini. Coba lagi sekitar satu jam lagi, ya.' });
+  }
+  if (!validPassword(password)) return res.status(400).json(WEAK_PASSWORD);
+  const user = db.prepare('SELECT id, username, name, secret_hash, secret_salt FROM users WHERE username = ?').get(username);
+  // Hash even when there is nothing to compare with, and answer the same way whether the name
+  // or the answer is wrong, so neither the timing nor the message reveals which names exist.
+  const hash = await hashPassword(normalizeAnswer(body.answer), (user && user.secret_salt) || 'no-such-user');
+  if (!user || !user.secret_hash || !sameHex(hash, user.secret_hash)) {
+    answerTries.hit(key); answerTriesPerAccount.hit(username);
+    return res.status(401).json({ error: 'Jawabannya belum cocok. Coba ingat-ingat lagi pelan-pelan, ya.' });
+  }
+  answerTries.clear(key);
+  await setPassword(user.id, password);
+  db.prepare('DELETE FROM sessions WHERE user_id = ?').run(user.id);
   startSession(req, res, user.id);
   res.json({ id: user.id, username: user.username, name: user.name });
 }));
@@ -172,6 +249,20 @@ router.post('/logout', (req, res) => {
 // ---------- The signed-in account (mounted behind requireUser, at /api/account) ----------
 const account = express.Router();
 
+// Anything that changes who can get into the account asks for the current password again.
+// Wrong guesses are counted like failed sign-ins. Answers the request itself when it fails.
+async function confirmPassword(req, res, password) {
+  const key = `password|${req.user.id}`;
+  if (loginFailures.blocked(key)) { res.status(429).json(TOO_MANY); return false; }
+  if (!(await passwordMatches(req.user.id, password))) {
+    loginFailures.hit(key);
+    res.status(403).json({ error: 'Kata sandi yang sekarang belum cocok. Coba lagi pelan-pelan, ya.' });
+    return false;
+  }
+  loginFailures.clear(key);
+  return true;
+}
+
 account.patch('/profile', (req, res) => {
   const name = String((req.body && req.body.name) || '').trim().slice(0, 30);
   if (!name) return res.status(400).json({ error: 'Nama panggilannya belum diisi. Tulis nama yang kamu suka, ya.' });
@@ -179,30 +270,39 @@ account.patch('/profile', (req, res) => {
   res.json({ ...req.user, name });
 });
 
-// Wrong guesses at the current password are counted like failed sign-ins.
 account.post('/password', wrap(async (req, res) => {
   const body = req.body || {};
-  const current = String(body.current || '');
   const next = String(body.next || '');
-  const key = `password|${req.user.id}`;
-  if (loginFailures.blocked(key)) {
-    return res.status(429).json({ error: 'Terlalu banyak percobaan. Istirahat dulu sekitar 10 menit, lalu coba lagi, ya.' });
-  }
-  if (next.length < 8 || next.length > 200) {
-    return res.status(400).json({ error: 'Kata sandi barunya minimal 8 karakter, ya. Biar jurnalmu aman.' });
-  }
-  const user = db.prepare('SELECT pass_hash, pass_salt FROM users WHERE id = ?').get(req.user.id);
-  const hash = await hashPassword(current, user.pass_salt);
-  if (!crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(user.pass_hash, 'hex'))) {
-    loginFailures.hit(key);
-    return res.status(403).json({ error: 'Kata sandi yang sekarang belum cocok. Coba lagi pelan-pelan, ya.' });
-  }
-  loginFailures.clear(key);
-  const salt = crypto.randomBytes(16).toString('hex');
-  db.prepare('UPDATE users SET pass_hash = ?, pass_salt = ? WHERE id = ?').run(await hashPassword(next, salt), salt, req.user.id);
+  if (!validPassword(next)) return res.status(400).json(WEAK_PASSWORD);
+  if (!(await confirmPassword(req, res, body.current))) return;
+  await setPassword(req.user.id, next);
   // Anyone still signed in elsewhere with the old password is signed out; this device stays in.
   db.prepare('DELETE FROM sessions WHERE user_id = ? AND token_hash != ?').run(req.user.id, sha256(readCookie(req, COOKIE) || ''));
   res.json({ ok: true });
 }));
 
-module.exports = { router, account, requireUser, wrap, limiter };
+// Sets or replaces the personal question used when the password is forgotten.
+account.post('/question', wrap(async (req, res) => {
+  const body = req.body || {};
+  if (!validQuestion(body.question, body.answer)) return res.status(400).json(QUESTION_PROBLEM);
+  if (!(await confirmPassword(req, res, body.password))) return;
+  await setQuestion(req.user.id, body.question, body.answer);
+  res.json({ question: cleanQuestion(body.question) });
+}));
+
+// Deletes the account and everything that belongs to it. A circle left without members goes too.
+account.delete('/', wrap(async (req, res) => {
+  if (!(await confirmPassword(req, res, req.body && req.body.password))) return;
+  const id = req.user.id;
+  db.transaction(() => {
+    for (const table of ['photos', 'entries', 'settings', 'sessions', 'circle_members']) {
+      db.prepare(`DELETE FROM ${table} WHERE user_id = ?`).run(id);
+    }
+    db.prepare('DELETE FROM circles WHERE id NOT IN (SELECT circle_id FROM circle_members)').run();
+    db.prepare('DELETE FROM users WHERE id = ?').run(id);
+  })();
+  setSessionCookie(req, res, '', 0);
+  res.json({ ok: true });
+}));
+
+module.exports = { router, account, requireUser, wrap, limiter, setPassword };

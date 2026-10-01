@@ -13,12 +13,9 @@ const dest = process.argv[2]
   : path.join(path.dirname(db.name), 'backups', `azzifa-${stamp}.sqlite`);
 
 fs.mkdirSync(path.dirname(dest), { recursive: true });
+// The database is closed before the process ends in both outcomes, and process.exit() is never
+// called: exiting with the database still open makes its native module abort.
 db.backup(dest)
-  .then(() => {
-    console.log(`Cadangan tersimpan: ${dest} (${Math.round(fs.statSync(dest).size / 1024)} KB)`);
-    db.close();
-  })
-  .catch((e) => {
-    console.error('Cadangan gagal:', e.message);
-    process.exit(1);
-  });
+  .then(() => console.log(`Cadangan tersimpan: ${dest} (${Math.round(fs.statSync(dest).size / 1024)} KB)`))
+  .catch((e) => { console.error('Cadangan gagal:', e.message); process.exitCode = 1; })
+  .finally(() => db.close());

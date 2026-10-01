@@ -242,7 +242,7 @@
   .card > .empty{padding:28px 10px;}
 
   /* ---- Toast ---- */
-  .toast{position:fixed; bottom:calc(92px + env(safe-area-inset-bottom,0px)); left:50%; transform:translateX(-50%) translateY(12px) scale(.96); background:var(--ink); color:var(--paper); padding:11px 20px; border-radius:var(--r-pill); font-size:13.5px; font-weight:500; opacity:0; transition:opacity .5s var(--ease), transform .5s var(--ease); pointer-events:none; z-index:40; max-width:90%; text-align:center; box-shadow:0 24px 40px -20px rgba(42,25,32,.6);}
+  .toast{position:fixed; bottom:calc(92px + env(safe-area-inset-bottom,0px)); left:50%; transform:translateX(-50%) translateY(12px) scale(.96); background:var(--ink); color:var(--paper); padding:11px 20px; border-radius:var(--r-pill); font-size:13.5px; font-weight:500; opacity:0; transition:opacity .5s var(--ease), transform .5s var(--ease); pointer-events:none; z-index:80; max-width:90%; text-align:center; box-shadow:0 24px 40px -20px rgba(42,25,32,.6);}
   .toast.show{opacity:1; transform:translateX(-50%) translateY(0) scale(1);}
 
   /* ---- Type polish ---- */
@@ -382,6 +382,15 @@
   .setting .btn-ghost-sm{flex-shrink:0; margin-top:0;}
   .setting input[type=time]{flex-shrink:0; border:none; box-shadow:inset 0 0 0 1px var(--line); border-radius:12px; padding:8px 10px; font:500 14px 'Plus Jakarta Sans',sans-serif; background:var(--well); color:var(--ink);}
   .btn-soft.danger{background:transparent; box-shadow:inset 0 0 0 1px var(--rose);}
+
+  .pw-card .setting{margin-top:20px; padding-top:16px; border-top:1px solid var(--line);}
+  .confirm-form .field:first-of-type{margin-top:12px;}
+  .confirm-form .confirm-row{margin-top:0;}
+  .account-card .btn-ghost-sm.quiet{margin-top:14px; box-shadow:none; color:var(--ink-soft); padding-left:6px;}
+  .field[hidden]{display:none;}
+  .field select{width:100%; height:54px; padding:0 14px; border:none; border-radius:18px; background:var(--well); box-shadow:inset 0 0 0 1px var(--line); font:500 15px 'Plus Jakarta Sans',sans-serif; color:var(--ink); cursor:pointer; transition:box-shadow .5s var(--ease), background-color .5s var(--ease);}
+  .field select:focus{outline:none; background:var(--card); box-shadow:inset 0 0 0 1.5px var(--rose), 0 0 0 5px var(--rose-soft);}
+  .asked-question{margin:14px 0 0; padding:14px 16px; border-radius:var(--r-inner); background:var(--well); box-shadow:inset 0 0 0 1px var(--line); font-weight:700; font-size:15.5px; line-height:1.45;}
 
   /* ---- The composer: the journal card everything else is arranged around. It gets a wider,
      rose-tinted tray, a soft glow, larger type and a taller writing area than any other card. ---- */
@@ -540,7 +549,35 @@ const PROMPTS = [
   "Gimana tidurmu semalam, dan pengaruhnya ke hari ini?",
   "Ada momen hari ini yang pengin kamu ingat nanti?",
   "Apa yang kamu lakuin hari ini cuma buat diri sendiri?",
-  "Satu hal dari hari ini yang bikin kamu mikir, 'untung tadi ...'"
+  "Satu hal dari hari ini yang bikin kamu mikir, 'untung tadi ...'",
+  "Apa hal paling kecil yang kamu syukuri hari ini?",
+  "Siapa yang hari ini bikin harimu sedikit lebih baik?",
+  "Apa yang hari ini pengin kamu ulang lagi besok?",
+  "Ada yang hari ini kamu lakuin buat pertama kalinya?",
+  "Lagu, film, atau bacaan apa yang nemenin kamu hari ini?",
+  "Apa yang paling kamu tunggu-tunggu minggu ini?",
+  "Kalau hari ini cuaca, cuacanya kayak apa? Kenapa?",
+  "Apa yang hari ini kamu pikirin tapi belum kamu omongin ke siapa-siapa?",
+  "Ada yang pengin kamu bilang ke diri sendiri hari ini?",
+  "Apa yang bikin kamu bangga sama dirimu hari ini, sekecil apa pun?",
+  "Hal apa yang hari ini nguras tenagamu, dan hal apa yang ngisi lagi?",
+  "Ada kebiasaan kecil yang hari ini berhasil kamu jaga?",
+  "Kalau bisa ngulang satu momen hari ini, momen yang mana?",
+  "Apa yang hari ini kamu lepas atau ikhlasin?",
+  "Ada tempat yang hari ini bikin kamu nyaman? Ceritain.",
+  "Apa yang pengin kamu ceritain ke teman dekat soal hari ini?",
+  "Badanmu hari ini rasanya gimana? Segar, pegal, atau biasa aja?",
+  "Apa keputusan kecil yang kamu ambil hari ini?",
+  "Ada yang hari ini bikin kamu ketawa? Ceritain.",
+  "Apa yang hari ini ternyata lebih gampang dari yang kamu kira?",
+  "Apa yang hari ini ternyata lebih susah dari yang kamu kira?",
+  "Siapa yang hari ini kamu kangenin?",
+  "Kalau besok cuma boleh ngerjain satu hal, kamu pilih apa?",
+  "Apa yang kamu butuhin sekarang: istirahat, teman ngobrol, atau waktu sendiri?",
+  "Ada yang hari ini kamu bantu, atau yang bantu kamu?",
+  "Apa yang kamu lihat, dengar, atau cium hari ini yang masih keinget?",
+  "Buat siapa atau apa kamu pengin bilang terima kasih hari ini?",
+  "Tiga kata buat hari ini. Kenapa tiga kata itu?"
 ];
 const SAVE_MESSAGES = [
   "Sudah ditulis. Terima kasih sudah meluangkan waktu ini.",
@@ -550,16 +587,54 @@ const SAVE_MESSAGES = [
   "Tersimpan, ya. Sampai jumpa besok.",
   "Sudah aman tersimpan. Istirahat dulu.",
   "Terima kasih sudah cerita hari ini.",
-  "Tersimpan. Semoga sisa harimu lebih ringan."
+  "Tersimpan. Semoga sisa harimu lebih ringan.",
+  "Tersimpan. Pelan-pelan, satu hari satu cerita.",
+  "Sudah masuk. Senang kamu mampir hari ini.",
+  "Tercatat. Kamu sudah jujur sama dirimu sendiri.",
+  "Tersimpan. Apa pun isinya, itu milikmu.",
+  "Selesai. Napas dulu, ya.",
+  "Sudah kusimpan baik-baik.",
+  "Tercatat. Besok kita lanjut lagi.",
+  "Tersimpan. Terima kasih sudah percaya cerita ke sini."
 ];
-// Fixed, chronological sequence for "Harian" mode — unlike PROMPTS (random pool for Check Up),
-// these always appear in this order so the four answers add up to one full day by the end.
+// "Harian" mode always walks the same four moments in the same order — morning to midday, the
+// afternoon, one thing that stuck, how the day ends — so the four answers add up to one full
+// day. Each moment has several wordings; which one is used is fixed for the day (see dayPick).
 const DAILY_STEPS = [
-  "Ceritain kegiatanmu dari pagi sampai siang tadi.",
-  "Gimana lanjutan hari ini pas sore?",
-  "Ada kejadian, obrolan, atau momen yang masih nempel di kepala hari ini?",
-  "Sebelum nutup hari ini, gimana perasaanmu sekarang?"
+  [ "Ceritain kegiatanmu dari pagi sampai siang tadi.",
+    "Pagimu dimulai dari mana? Ceritain sampai siang.",
+    "Apa aja yang kamu kerjain dari bangun tidur sampai siang?",
+    "Gimana pagi sampai siangmu hari ini? Urut aja ceritanya.",
+    "Dari bangun tidur sampai makan siang, ada apa aja?",
+    "Setengah hari pertama kamu isi dengan apa?" ],
+  [ "Gimana lanjutan hari ini pas sore?",
+    "Sore tadi kamu ngapain aja?",
+    "Setelah siang, harimu berjalan gimana?",
+    "Apa yang terjadi dari siang sampai sore?",
+    "Sorenya kamu habisin di mana, dan sama siapa?",
+    "Paruh kedua hari ini isinya apa?" ],
+  [ "Ada kejadian, obrolan, atau momen yang masih nempel di kepala hari ini?",
+    "Momen mana dari hari ini yang paling kamu ingat?",
+    "Ada satu hal dari hari ini yang masih kepikiran?",
+    "Kalau hari ini cuma boleh diingat satu momennya, kamu pilih yang mana?",
+    "Ada obrolan atau kejadian kecil hari ini yang berkesan?",
+    "Apa yang hari ini bikin kamu berhenti sebentar dan mikir?" ],
+  [ "Sebelum nutup hari ini, gimana perasaanmu sekarang?",
+    "Hari ini ditutup dengan perasaan apa?",
+    "Sekarang, setelah semuanya lewat, kamu ngerasa gimana?",
+    "Kalau hari ini dirangkum jadi satu perasaan, perasaan apa?",
+    "Apa yang kamu rasain pas hari ini hampir selesai?",
+    "Sebelum istirahat, apa yang pengin kamu lepasin dari hari ini?" ],
 ];
+// One item from a list, chosen by the date (and the account): it changes from one day to the
+// next, but stays the same all day, so a re-render never swaps the wording under the reader.
+function dayPick(list, salt){
+  let h = 0;
+  for(const ch of todayStr()+'|'+salt+'|'+(me ? me.username : '')) h = (h*31 + ch.charCodeAt(0)) >>> 0;
+  return list[h % list.length];
+}
+// Today's wording for Harian step i (0-3); past the last step it stays on the last.
+function dailyStep(i){ const n = Math.min(i, DAILY_STEPS.length-1); return dayPick(DAILY_STEPS[n], 'harian-'+n); }
 const MOOD_ORDER = ['berat','cemas','biasa','tenang','senang'];
 const MOODS = [
   {k:'berat', e:'😞', l:'Berat', c:'#B5726B'},
@@ -610,6 +685,8 @@ let draftPhotos = [];        // ids of pictures already uploaded for the note be
 let stashedPhotos = null;    // the new note's pictures, set aside while an older note is being edited
 let photoBusy = 0;           // uploads in flight
 let tourOn = false, tourIdx = 0;
+let resetQuestion = null;    // step 2 of "forgot password": {username, question} once the name is known
+let questionAsk = false, deleteAsk = false;   // the two in-page forms on Profil that open on request
 let tourDone = true;         // from the server; false starts the tour on this account's first visit
 let promptSynced = false;
 let dayMode = 'daily';      // Harian opens first; Check Up is one tap away
@@ -742,13 +819,89 @@ async function deleteNote(date, idx){
   showToast('Catatannya sudah dihapus.'); render();
   if(circles.length) loadCircles();
 }
+// ---------- Greetings ----------
+// Several lines for each part of the day, plus a few that only belong to certain days of the
+// week. {nama} becomes the account's name. dayPick keeps one line per part of each day.
+const GREETINGS = {
+  dini: [
+    "Masih melek? Kalau butuh cerita, aku di sini.",
+    "Malam sudah larut. Kalau kepala masih ramai, tuang saja di sini.",
+    "Belum tidur, {nama}? Nggak apa-apa, pelan-pelan aja.",
+    "Jam segini biasanya pikiran paling berisik. Aku dengerin, kok.",
+    "Dunia lagi sepi. Enak buat ngobrol sama diri sendiri.",
+  ],
+  pagi: [
+    "Pagi. Nggak perlu buru-buru, jalanin aja pelan-pelan.",
+    "Selamat pagi, {nama}. Semoga hari ini ramah sama kamu.",
+    "Pagi. Tarik napas dulu sebelum mulai apa-apa.",
+    "Hai, pagi. Mau mulai hari ini dengan cerita kecil?",
+    "Pagi, {nama}. Apa pun rencananya, satu-satu aja.",
+    "Udah bangun? Hebat. Sisanya nyusul pelan-pelan.",
+  ],
+  siang: [
+    "Siang. Udah sempat tarik napas belum?",
+    "Siang, {nama}. Jangan lupa makan, ya.",
+    "Hai. Setengah hari udah lewat, dan kamu udah sejauh ini.",
+    "Siang. Kalau lagi penat, berhenti sebentar juga boleh.",
+    "Siang. Gimana sejauh ini, lancar atau lagi seret?",
+  ],
+  sore: [
+    "Sore. Capek, kesel, atau biasa aja — semuanya boleh.",
+    "Sore, {nama}. Hari ini udah kamu jalanin, itu aja udah cukup.",
+    "Hai, sore. Ada yang mau diceritain sebelum hari habis?",
+    "Sore. Pelan-pelan aja, nggak ada yang ngejar.",
+    "Sore. Semoga ada satu hal kecil yang enak hari ini.",
+  ],
+  malam: [
+    "Malam. Taruh dulu apa yang kamu bawa hari ini.",
+    "Malam, {nama}. Hari ini selesai, kamu boleh istirahat.",
+    "Hai, malam. Sebelum tidur, mau cerita sedikit?",
+    "Malam. Apa pun yang terjadi tadi, kamu udah melewatinya.",
+    "Malam. Yuk, tutup hari ini pelan-pelan.",
+    "Malam, {nama}. Lepas dulu yang berat-berat, ceritain di sini.",
+  ],
+};
+const DAY_GREETINGS = {   // by getDay(): 0 = Sunday
+  1: ["Senin lagi, {nama}. Mulainya pelan-pelan aja.", "Awal minggu. Nggak harus langsung kencang."],
+  3: ["Rabu. Udah setengah jalan minggu ini."],
+  5: ["Jumat, {nama}. Sedikit lagi sampai akhir pekan.", "Jumat. Minggu ini hampir selesai, kamu hebat."],
+  6: ["Sabtu. Semoga hari ini ada waktu buat diri sendiri."],
+  0: ["Minggu, {nama}. Hari buat ngisi tenaga lagi.", "Minggu. Santai dulu sebelum minggu baru."],
+};
 function getGreeting(){
-  const h=new Date().getHours();
-  if(h<5) return "Masih melek? Kalau butuh cerita, aku di sini.";
-  if(h<11) return "Pagi. Nggak perlu buru-buru, jalanin aja pelan-pelan.";
-  if(h<15) return "Siang. Udah sempat tarik napas belum?";
-  if(h<19) return "Sore. Capek, kesel, atau biasa aja — semuanya boleh.";
-  return "Malam. Taruh dulu apa yang kamu bawa hari ini.";
+  const now = new Date(), h = now.getHours();
+  const part = h<5 ? 'dini' : h<11 ? 'pagi' : h<15 ? 'siang' : h<19 ? 'sore' : 'malam';
+  const pool = part==='dini' ? GREETINGS.dini : [...GREETINGS[part], ...(DAY_GREETINGS[now.getDay()] || [])];
+  const line = dayPick(pool, 'sapa-'+part);
+  return me ? line.replace('{nama}', esc(me.name)) : line.replace(/,? \{nama\}/, '');
+}
+// The second line of the greeting: about today's writing, with an eye on the streak.
+const NUDGES_EMPTY = [
+  "Kamu belum menulis hari ini. Cerita dulu sedikit, ya.",
+  "Hari ini belum ada catatan. Satu kalimat juga boleh.",
+  "Belum ada cerita hari ini. Mulai dari yang paling gampang aja.",
+  "Kartunya masih kosong. Mau diisi sebentar?",
+  "Belum sempat nulis? Nggak apa-apa, sekarang juga bisa.",
+];
+const NUDGES_DONE = [
+  "Hari ini sudah ada {n} catatan. Mau nambah lagi?",
+  "Sudah {n} catatan hari ini. Terima kasih sudah mampir.",
+  "{n} catatan hari ini. Masih ada yang mau diceritain?",
+  "Hari ini kamu sudah menulis {n} kali. Senang lihatnya.",
+];
+const NUDGES_BACK = [
+  "Lama nggak mampir. Senang kamu balik lagi.",
+  "Udah beberapa hari, ya. Nggak apa-apa, mulai lagi dari hari ini.",
+  "Kangen ceritamu. Hari ini mau nulis sedikit?",
+];
+function getNudge(notesToday){
+  if(notesToday>0) return dayPick(NUDGES_DONE, 'sudah').replace('{n}', notesToday);
+  const days = new Set(entries.map(e=>e.date));
+  let streak = 0;
+  while(days.has(daysAgo(streak+1))) streak++;   // the run of days that ended yesterday
+  if(streak>=3) return `Sudah ${streak} hari berturut-turut kamu menulis. Lanjut hari ini?`;
+  if(entries.length && !days.has(daysAgo(1)) && !days.has(daysAgo(2)) && !days.has(daysAgo(3))) return dayPick(NUDGES_BACK, 'balik');
+  return dayPick(NUDGES_EMPTY, 'belum');
 }
 function fmtDate(d){ return asDate(d).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}); }
 function fmtShort(d){ return asDate(d).toLocaleDateString('id-ID',{day:'numeric',month:'short'}); }
@@ -1207,6 +1360,30 @@ async function savePassword(ev){
     showToast('Kata sandimu sudah diganti.');
   }catch(e){ formError('pwErr', OFFLINE_NOTE); }
 }
+function askQuestion(on){ questionAsk = on; render(); if(on) document.getElementById('profA')?.focus(); }
+async function saveQuestion(ev){
+  ev.preventDefault();
+  document.getElementById('profQErr').hidden = true;
+  try{
+    const res = await api('/api/account/question', JSON_POST({...readQuestion('prof'), password:document.getElementById('profQPass').value}));
+    const data = await res.json();
+    if(!res.ok){ formError('profQErr', data.error || 'Pertanyaannya belum tersimpan. Coba lagi sebentar lagi, ya.'); return; }
+    questionAsk = false; me = {...me, question:data.question};
+    render(); showToast('Pertanyaan pribadimu sudah tersimpan.');
+  }catch(e){ formError('profQErr', OFFLINE_NOTE); }
+}
+function askDelete(on){ deleteAsk = on; render(); if(on) document.getElementById('delPass')?.focus(); }
+async function deleteAccount(ev){
+  ev.preventDefault();
+  document.getElementById('delErr').hidden = true;
+  try{
+    const res = await api('/api/account', {method:'DELETE', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password:document.getElementById('delPass').value})});
+    const data = await res.json();
+    if(!res.ok){ formError('delErr', data.error || 'Akunnya belum berhasil dihapus. Coba lagi sebentar lagi, ya.'); return; }
+    forgetDraft(); signedOut();
+    showToast('Akunmu sudah dihapus. Terima kasih sudah pernah bercerita di sini.');
+  }catch(e){ formError('delErr', OFFLINE_NOTE); }
+}
 function renderProfile(){
   const days = new Set(entries.map(e=>e.date)).size;
   const dark = getTheme()==='dark';
@@ -1233,7 +1410,7 @@ function renderProfile(){
       </form>
     </section>
     <section class="card pw-card">
-      <h2 class="section-h">Ganti kata sandi</h2>
+      <h2 class="section-h">Keamanan</h2>
       <form onsubmit="savePassword(event)">
         <input type="text" autocomplete="username" value="${escAttr(me.username)}" hidden>
         <label class="field" style="margin-top:0"><span>Kata sandi sekarang</span><input id="pwCurrent" type="password" autocomplete="current-password" required></label>
@@ -1242,6 +1419,17 @@ function renderProfile(){
         <p class="summary-err" id="pwErr" role="alert" hidden></p>
         <button class="btn-soft" type="submit">Ganti kata sandi</button>
       </form>
+      <div class="setting">
+        <div><div class="setting-title">Pertanyaan pribadi</div><div class="setting-hint">${me.question ? esc(me.question) : 'Belum ada. Atur sekarang supaya kamu tetap bisa masuk kalau lupa kata sandi.'}</div></div>
+        ${questionAsk ? '' : `<button class="btn-ghost-sm" onclick="askQuestion(true)">${me.question ? 'Ganti' : 'Atur'}</button>`}
+      </div>
+      ${questionAsk ? `<form class="confirm-form" onsubmit="saveQuestion(event)">
+        ${questionFields('prof', me.question)}
+        <label class="field"><span>Kata sandi sekarang</span><input id="profQPass" type="password" autocomplete="current-password" required></label>
+        <p class="field-hint">Dipakai kalau kamu lupa kata sandi. Pilih yang jawabannya hanya kamu yang tahu.</p>
+        <p class="summary-err" id="profQErr" role="alert" hidden></p>
+        <div class="confirm-row"><button class="btn-ghost-sm" type="submit">Simpan pertanyaan</button><button class="btn-ghost-sm" type="button" onclick="askQuestion(false)">Batal</button></div>
+      </form>` : ''}
     </section>
     </div>
     <div class="col col-side">
@@ -1279,6 +1467,12 @@ function renderProfile(){
       <h2 class="section-h">Akun</h2>
       <p class="summary-hint">Kamu masuk sebagai <b>@${esc(me.username)}</b>. Catatanmu tetap tersimpan dan menunggu saat kamu kembali.</p>
       <button class="btn-soft danger" onclick="logout()">Keluar</button>
+      ${deleteAsk ? `<form class="confirm-form" onsubmit="deleteAccount(event)">
+        <p class="summary-hint" style="margin:18px 0 0;"><b>Menghapus akun tidak bisa dibatalkan.</b> Semua catatan, foto, dan keanggotaan grupmu ikut terhapus. Kalau masih ingin menyimpannya, cadangkan dulu dari halaman Riwayat.</p>
+        <label class="field"><span>Kata sandi</span><input id="delPass" type="password" autocomplete="current-password" required></label>
+        <p class="summary-err" id="delErr" role="alert" hidden style="margin-top:12px"></p>
+        <div class="confirm-row" style="margin-top:14px"><button class="btn-ghost-sm danger" type="submit">Ya, hapus akunku</button><button class="btn-ghost-sm" type="button" onclick="askDelete(false)">Batal</button></div>
+      </form>` : `<button class="btn-ghost-sm quiet" onclick="askDelete(true)">Hapus akun</button>`}
     </section>
     </div>
   `;
@@ -1287,7 +1481,7 @@ function renderToday(){
   const notes = todayNotes();
   const editing = editingIdx!==null && notes[editingIdx] ? notes[editingIdx] : null;
   const dailyDone = dayMode==='daily' && notes.length>=DAILY_STEPS.length && !editing;
-  const promptShown = editing ? editing.prompt : (dayMode==='daily' ? (DAILY_STEPS[notes.length] || DAILY_STEPS[DAILY_STEPS.length-1]) : PROMPTS[promptIdx]);
+  const promptShown = editing ? editing.prompt : (dayMode==='daily' ? dailyStep(notes.length) : PROMPTS[promptIdx]);
   const val = draftText!==null ? draftText : (editing ? editing.text : '');
   const todayEntry = entries.find(e=>e.date===todayStr());
   const daySummary = todayEntry && todayEntry.daySummary ? todayEntry.daySummary : null;
@@ -1377,6 +1571,7 @@ function renderToday(){
 }
 function setTab(t){
   syncDraft(); tab=t;
+  if(t!=='profile'){ questionAsk=false; deleteAsk=false; }
   if(t!=='history') histDate=null;
   if(t==='trend') ensureInsight();
   animateContent=true; render();
@@ -1420,7 +1615,7 @@ async function saveEntry(){
     if(draftPhotos.length) n.photos=[...draftPhotos]; else delete n.photos;
   }
   else{
-    const stepPrompt = dayMode==='daily' ? (DAILY_STEPS[notes.length] || DAILY_STEPS[DAILY_STEPS.length-1]) : PROMPTS[promptIdx];
+    const stepPrompt = dayMode==='daily' ? dailyStep(notes.length) : PROMPTS[promptIdx];
     notes.push({prompt:stepPrompt, text, at:Date.now(), ...(draftPhotos.length ? {photos:[...draftPhotos]} : {})});
   }
   const mood=selectedMood || (existing && existing.mood) || 'biasa';
@@ -1594,26 +1789,60 @@ function copyCode(code){
 }
 
 // ---------- Accounts ----------
-function setAuthMode(m){ authMode=m; render(); }
+function setAuthMode(m){ authMode=m; resetQuestion=null; render(); }
+// The personal questions offered when making an account or changing the question in Profil.
+const QUESTIONS = [
+  'Apa nama hewan peliharaan pertamamu?',
+  'Apa makanan favoritmu waktu kecil?',
+  'Siapa nama sahabat masa kecilmu?',
+  'Apa nama sekolah dasarmu?',
+  'Siapa nama guru yang paling kamu ingat?',
+  'Apa judul lagu yang paling berkesan buatmu?',
+  'Di jalan apa rumah masa kecilmu?',
+];
+// A question picker with room for one's own wording, plus the answer. Field ids are <p>Q, <p>QOwn, <p>A.
+function questionFields(p, current){
+  const own = !!current && !QUESTIONS.includes(current);
+  return `
+      <label class="field"><span>Pertanyaan pribadi</span><select id="${p}Q" onchange="document.getElementById('${p}QOwnWrap').hidden = this.value!=='own'">
+        ${QUESTIONS.map(q=>`<option${q===current ? ' selected' : ''}>${esc(q)}</option>`).join('')}
+        <option value="own"${own ? ' selected' : ''}>Tulis pertanyaanku sendiri</option>
+      </select></label>
+      <label class="field" id="${p}QOwnWrap"${own ? '' : ' hidden'}><span>Pertanyaanmu</span><input id="${p}QOwn" maxlength="120" value="${own ? escAttr(current) : ''}" placeholder="Misalnya: Apa nama warung langgananku?"></label>
+      <label class="field"><span>Jawabanmu</span><input id="${p}A" maxlength="100" required autocomplete="off" autocapitalize="none" spellcheck="false"></label>`;
+}
+function readQuestion(p){
+  const pick = document.getElementById(p+'Q').value;
+  return {question: pick==='own' ? document.getElementById(p+'QOwn').value.trim() : pick, answer: document.getElementById(p+'A').value};
+}
 // On failure the message is written straight into the form, so what was typed is not lost.
 async function submitAuth(ev){
   ev.preventDefault();
   if(authBusy) return;
   const errEl=document.getElementById('authErr');
   const fail=msg=>{ errEl.textContent=msg; errEl.hidden=false; authBusy=false; };
-  const body={
-    username:document.getElementById('authUser').value.trim(),
-    name:(document.getElementById('authName')?.value || '').trim(),
-    password:document.getElementById('authPass').value,
-    code:(document.getElementById('authCode')?.value || '').trim(),
-  };
+  const value = id => document.getElementById(id)?.value || '';
   authBusy=true; errEl.hidden=true;
   try{
-    const res=await api(`/api/auth/${authMode==='register'?'register':'login'}`, JSON_POST(body));
+    // Forgot password, step 1: find the question for this name, then show step 2.
+    if(authMode==='reset' && !resetQuestion){
+      const username = value('authUser').trim();
+      const res = await api('/api/auth/question?username='+encodeURIComponent(username));
+      const data = await res.json();
+      if(!res.ok) return fail(data.error || 'Belum berhasil. Coba lagi sebentar lagi, ya.');
+      resetQuestion = {username, question:data.question};
+      authBusy=false; render(); document.getElementById('authAnswer')?.focus();
+      return;
+    }
+    const body = authMode==='reset'
+      ? {username:resetQuestion.username, answer:value('authAnswer'), password:value('authPass')}
+      : {username:value('authUser').trim(), name:value('authName').trim(), password:value('authPass'), code:value('authCode').trim(),
+         ...(authMode==='register' ? readQuestion('auth') : {})};
+    const res=await api(`/api/auth/${authMode==='register' ? 'register' : authMode==='reset' ? 'reset' : 'login'}`, JSON_POST(body));
     const data=await res.json();
     if(!res.ok) return fail(data.error || 'Belum berhasil masuk. Coba lagi sebentar lagi, ya.');
   }catch(e){ return fail('Azzifa belum bisa terhubung ke server. Coba lagi sebentar lagi, ya.'); }
-  authBusy=false; tab='today'; animateContent=true; nudgeShown=false;
+  authBusy=false; tab='today'; animateContent=true; nudgeShown=false; resetQuestion=null;
   initStorage();
 }
 // Clears everything that belonged to the previous account before showing the sign-in screen.
@@ -1622,7 +1851,7 @@ function signedOut(){
   draftPhotos=[]; stashedPhotos=null; dayMode='daily'; closePhoto(); closeCamera(); endTour(false);
   histQuery=''; histMood=null; histTag=null; histFav=false; histDate=null; importPending=null;
   dashboardInsight=null; insightWeekCached=null; summaryText=null; summaryAt=null;
-  authMode='login'; animateContent=true;
+  authMode='login'; animateContent=true; questionAsk=false; deleteAsk=false; resetQuestion=null;
   render();
   api('/api/auth/config').then(r=>r.json()).then(c=>{ authCfg=c; if(!me) render(); }).catch(()=>{});
 }
@@ -1632,26 +1861,39 @@ async function logout(){
   signedOut();
 }
 function renderAuth(){
-  const reg = authMode==='register';
-  const hint = !reg ? 'Jurnalmu hanya bisa dibuka dengan akunmu.'
+  const reg = authMode==='register', reset = authMode==='reset', asked = reset && resetQuestion;
+  const hint = asked ? `Untuk akun <b>@${esc(resetQuestion.username)}</b>. Jawab pertanyaan pribadimu, lalu pilih kata sandi baru.`
+    : reset ? 'Tulis nama penggunamu dulu. Setelah itu kamu akan diminta menjawab pertanyaan pribadi yang kamu pilih saat membuat akun.'
+    : !reg ? 'Jurnalmu hanya bisa dibuka dengan akunmu.'
     : authCfg.firstAccount ? 'Ini akun pertama di server ini. Catatan yang sudah ada sebelumnya akan menjadi milik akun ini.'
     : 'Setiap akun punya jurnal sendiri. Orang lain tidak bisa membaca catatanmu.';
-  const switcher = reg
-    ? (authCfg.firstAccount ? '' : `<button class="btn-ghost-sm" onclick="setAuthMode('login')">Sudah punya akun? Masuk</button>`)
-    : (authCfg.signup ? `<button class="btn-ghost-sm" onclick="setAuthMode('register')">Belum punya akun? Daftar</button>` : '');
-  return `<section class="card auth">
-    <span class="eyebrow">${reg?'Akun baru':'Selamat datang'}</span>
-    <h2 class="section-h">${reg?'Buat akun Azzifa':'Masuk ke jurnalmu'}</h2>
-    <p class="summary-hint">${hint}</p>
-    <form onsubmit="submitAuth(event)">
+  const links = reset ? (asked ? `<button class="btn-ghost-sm" onclick="setAuthMode('reset')">Ganti nama pengguna</button> ` : '')
+      + `<button class="btn-ghost-sm" onclick="setAuthMode('login')">Kembali ke halaman masuk</button>`
+    : reg ? (authCfg.firstAccount ? '' : `<button class="btn-ghost-sm" onclick="setAuthMode('login')">Sudah punya akun? Masuk</button>`)
+    : (authCfg.signup ? `<button class="btn-ghost-sm" onclick="setAuthMode('register')">Belum punya akun? Daftar</button> ` : '')
+      + `<button class="btn-ghost-sm" onclick="setAuthMode('reset')">Lupa kata sandi?</button>`;
+  const fields = asked ? `
+      <p class="asked-question">${esc(resetQuestion.question)}</p>
+      <label class="field"><span>Jawabanmu</span><input id="authAnswer" required autocomplete="off" autocapitalize="none" spellcheck="false"></label>
+      <label class="field"><span>Kata sandi baru</span><input id="authPass" type="password" autocomplete="new-password" required minlength="8"></label>
+      <p class="field-hint" style="margin-bottom:0">Huruf besar-kecil, spasi, dan tanda baca tidak berpengaruh. Kalau jawabannya benar-benar lupa, minta pemilik server ini mengatur ulang kata sandimu.</p>`
+    : reset ? `
+      <label class="field"><span>Nama pengguna</span><input id="authUser" autocomplete="username" autocapitalize="none" spellcheck="false" required minlength="3" maxlength="24"></label>`
+    : `
       <label class="field"><span>Nama pengguna</span><input id="authUser" autocomplete="username" autocapitalize="none" spellcheck="false" required minlength="3" maxlength="24"></label>
       ${reg ? `<label class="field"><span>Nama panggilan</span><input id="authName" autocomplete="nickname" maxlength="30" placeholder="Yang dilihat teman di grup"></label>` : ''}
-      <label class="field"><span>Kata sandi</span><input id="authPass" type="password" autocomplete="${reg?'new-password':'current-password'}" required minlength="8"></label>
-      ${reg && authCfg.needsCode ? `<label class="field"><span>Kode pendaftaran</span><input id="authCode" autocomplete="off" autocapitalize="none" spellcheck="false" required placeholder="Dari pemilik server ini"></label>` : ''}
+      <label class="field"><span>Kata sandi</span><input id="authPass" type="password" autocomplete="${reg ? 'new-password' : 'current-password'}" required minlength="8"></label>
+      ${reg ? questionFields('auth') + '<p class="field-hint" style="margin-bottom:0">Dipakai kalau kamu lupa kata sandi. Pilih yang jawabannya hanya kamu yang tahu.</p>' : ''}
+      ${reg && authCfg.needsCode ? `<label class="field"><span>Kode pendaftaran</span><input id="authCode" autocomplete="off" autocapitalize="none" spellcheck="false" required placeholder="Dari pemilik server ini"></label>` : ''}`;
+  return `<section class="card auth">
+    <span class="eyebrow">${reset ? 'Lupa kata sandi' : reg ? 'Akun baru' : 'Selamat datang'}</span>
+    <h2 class="section-h">${reset ? 'Atur ulang kata sandimu' : reg ? 'Buat akun Azzifa' : 'Masuk ke jurnalmu'}</h2>
+    <p class="summary-hint">${hint}</p>
+    <form onsubmit="submitAuth(event)">${fields}
       <p class="summary-err" id="authErr" role="alert" hidden></p>
-      <button class="save" type="submit"><span>${reg?'Buat akun':'Masuk'}</span><span class="chev" aria-hidden="true">${ICONS.chev}</span></button>
+      <button class="save" type="submit"><span>${asked ? 'Atur ulang kata sandi' : reset ? 'Lanjut' : reg ? 'Buat akun' : 'Masuk'}</span><span class="chev" aria-hidden="true">${ICONS.chev}</span></button>
     </form>
-    ${switcher}
+    ${links}
   </section>`;
 }
 
@@ -2016,7 +2258,7 @@ function render(){
   let followCls = ' ghost', followText = '…';           // reserved slot until data is ready
   if(entriesReady){
     followText = !authed ? 'Masuk dulu, ya. Jurnalmu cuma bisa dibuka olehmu.'
-      : nToday===0 ? 'Kamu belum menulis hari ini. Cerita dulu sedikit, ya.' : `Hari ini sudah ada ${nToday} catatan. Mau nambah lagi?`;
+      : getNudge(nToday);
     followCls = nudgeShown ? '' : ' late'; nudgeShown = true;
   }
   const dateLabel = new Date().toLocaleDateString('id-ID',{weekday:'short',day:'numeric',month:'short'});

@@ -139,6 +139,20 @@ Perintah itu membuat salinan utuh di `data/backups/` yang aman dijalankan saat a
 
 Setiap orang juga bisa mencadangkan jurnalnya sendiri lewat **Riwayat → Cadangkan .json**.
 
+## Kalau ada yang lupa kata sandi
+
+Yang ingat jawaban **pertanyaan pribadinya** bisa mengatur ulang sendiri lewat "Lupa kata sandi?" di halaman masuk. Yang lupa jawabannya juga perlu bantuanmu sebagai pemilik server:
+
+```bash
+# Fly.io
+fly ssh console -C "npm run reset-password -- nama-pengguna"
+
+# VPS
+docker compose -f docker-compose.prod.yml exec azzifa npm run reset-password -- nama-pengguna
+```
+
+Perintah itu mencetak kata sandi sementara dan mengeluarkan akun itu dari semua perangkat. Berikan kata sandinya ke pemilik akun, lalu minta ia menggantinya dan mengatur ulang pertanyaan pribadinya di halaman Profil. Di Railway, jalankan perintah yang sama lewat shell layanannya.
+
 ## Yang sudah dan belum diuji
 
 - **Sudah:** image Docker dibangun dan dijalankan sungguhan (daftar dengan kode, simpan catatan, unggah foto, cadangan, mati dengan bersih, data tetap ada setelah restart, health check sehat). Susunan VPS dengan Caddy dijalankan di `localhost`: HTTPS aktif dan HTTP dialihkan ke HTTPS.

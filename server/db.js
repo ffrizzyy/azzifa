@@ -19,7 +19,10 @@ db.exec(`
     name TEXT NOT NULL,
     pass_hash TEXT NOT NULL,
     pass_salt TEXT NOT NULL,
-    created_at INTEGER NOT NULL
+    created_at INTEGER NOT NULL,
+    secret_question TEXT,
+    secret_hash TEXT,
+    secret_salt TEXT
   );
   CREATE TABLE IF NOT EXISTS sessions (
     token_hash TEXT PRIMARY KEY,
@@ -54,6 +57,15 @@ db.exec(`
 `);
 
 const columnsOf = (table) => db.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name);
+
+// The personal question for a forgotten password, and the hash of its answer (see auth.js).
+// Accounts made before it existed have none until their owner sets one from Profil.
+// recovery_hash belonged to a short-lived recovery-code scheme that the question replaced.
+const userColumns = columnsOf('users');
+['secret_question', 'secret_hash', 'secret_salt'].forEach((column) => {
+  if (!userColumns.includes(column)) db.exec(`ALTER TABLE users ADD COLUMN ${column} TEXT`);
+});
+if (userColumns.includes('recovery_hash')) db.exec('ALTER TABLE users DROP COLUMN recovery_hash');
 
 // joined_day is the member's own local date when they joined; rows from before it existed
 // fall back to the UTC date of joined_at (see circles.js).

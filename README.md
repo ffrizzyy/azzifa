@@ -8,7 +8,9 @@ Jurnal harian dengan mood tracker (beberapa catatan per hari), dashboard tren mo
 - **Dashboard** — streak, grafik mood 7/30 hari, pengamatan AI mingguan, **kalender mood** per bulan (ketuk tanggal untuk membuka catatannya), dan **streak bareng**.
 - **Riwayat** — **pencarian**, saringan mood, **#tag** (tulis `#kerja` di catatan, otomatis jadi tag), **favorit** (bintang per catatan), rangkuman AI, ekspor `.txt`, cetak/PDF, serta **cadangan `.json`** yang bisa dipulihkan lagi.
 - **Tur fitur** — saat pertama kali masuk, tiap akun diajak keliling langkah demi langkah (sekitar 13 langkah, bisa dilewati) melewati semua fitur di keempat halaman. Langkah yang tidak relevan dilewati sendiri, misalnya penjelasan kotak tulis saat empat langkah Harian sudah selesai. Tur bisa dibuka lagi kapan saja dari halaman Profil.
-- **Profil** — satu halaman untuk profil dan pengaturan: nama panggilan, ganti kata sandi, pengingat harian, tema, mode menulis, tur fitur, dan tombol keluar.
+- **Profil** — satu halaman untuk profil dan pengaturan: nama panggilan, ganti kata sandi, pertanyaan pribadi, pengingat harian, tema, mode menulis, tur fitur, tombol keluar, dan hapus akun.
+- **Lupa kata sandi** — saat membuat akun, tiap orang memilih satu **pertanyaan pribadi** (atau menulis sendiri) beserta jawabannya. Di halaman masuk, "Lupa kata sandi?" meminta nama pengguna, lalu jawaban atas pertanyaan itu dan kata sandi baru. Huruf besar-kecil, spasi, dan tanda baca pada jawaban tidak berpengaruh.
+- **Sapaan dan pertanyaan yang berganti** — sapaan berbeda untuk tiap bagian hari dan hari tertentu, 56 pertanyaan Check Up, dan enam susunan kata untuk tiap langkah Harian. Pilihannya tetap sepanjang satu hari dan berganti keesokan harinya.
 - **Akun** — satu server bisa dipakai beberapa orang. Tiap akun punya jurnal sendiri yang tidak bisa dibaca akun lain.
 
 ### Streak bareng
@@ -127,10 +129,14 @@ Semua route `/api/*` selain `/api/auth/*` butuh sesi masuk (cookie) dan hanya me
 | GET | `/api/auth/config` | `{signup, firstAccount}` — apakah pendaftaran dibuka, dan apakah server ini belum punya akun |
 | POST | `/api/auth/register` | Buat akun `{username, name, password}` lalu langsung masuk |
 | POST | `/api/auth/login` | Masuk `{username, password}`. 8 kali gagal = terkunci 10 menit |
+| GET | `/api/auth/question?username=` | Pertanyaan pribadi milik nama pengguna itu. Nama yang tidak dikenal tetap mendapat sebuah pertanyaan, supaya tidak ketahuan akun mana yang ada |
+| POST | `/api/auth/reset` | Lupa kata sandi: `{username, answer, password}`. Semua sesi lama dihapus. Paling banyak 5 percobaan per jam |
 | POST | `/api/auth/logout` | Keluar; sesi dihapus di server |
 | GET | `/api/me` | Akun yang sedang masuk: `{id, username, name, createdAt}` |
 | PATCH | `/api/account/profile` | Ganti nama panggilan `{name}` |
 | POST | `/api/account/password` | Ganti kata sandi `{current, next}`. Sesi di perangkat lain dihapus |
+| POST | `/api/account/question` | Atur atau ganti pertanyaan pribadi `{question, answer, password}` |
+| DELETE | `/api/account` | Hapus akun `{password}` beserta catatan, foto, pengaturan, dan keanggotaan grupnya |
 | GET | `/api/circles` | Grup streak yang kamu ikuti: streak, anggota, siapa yang sudah menulis hari ini |
 | POST | `/api/circles` | Buat grup `{name}` |
 | POST | `/api/circles/join` | Gabung dengan kode undangan `{code}` |
@@ -154,7 +160,8 @@ Satu hari kini bisa punya beberapa catatan terpisah (kolom `notes`, JSON array `
 
 ## Catatan jujur soal keterbatasan
 
-- **Akun sederhana.** Nama panggilan dan kata sandi bisa diganti dari halaman Profil, tapi belum ada "lupa kata sandi" atau hapus akun dari antarmuka. Kalau lupa kata sandi, satu-satunya jalan saat ini adalah mengubah database langsung.
+- **Lupa kata sandi bergantung pada pertanyaan pribadi.** Tidak ada email di sistem ini. Jawaban pertanyaan pribadi lebih mudah ditebak orang yang mengenalmu daripada kata sandi, jadi percobaannya dibatasi ketat (5 per jam), dan sebaiknya pilih pertanyaan yang jawabannya benar-benar hanya kamu yang tahu. Yang lupa kata sandi **dan** jawabannya bisa dibantu pemilik server dengan `npm run reset-password -- <nama-pengguna>`, yang mencetak kata sandi sementara. Akun yang dibuat sebelum fitur ini ada belum punya pertanyaan; atur dari halaman Profil.
+- **Hapus akun bersifat permanen.** Tidak ada masa tunggu atau tempat sampah. Cadangkan dulu lewat Riwayat kalau catatannya masih diinginkan.
 - **Pendaftaran terbuka secara default.** Siapa pun yang tahu alamat server bisa membuat akun (jurnal tiap akun tetap terpisah). Set `ALLOW_SIGNUP=false` setelah semua orang yang kamu ajak sudah mendaftar.
 - **Pakai HTTPS kalau di-deploy.** Kata sandi dikirim saat masuk; tanpa HTTPS ia lewat jaringan tanpa enkripsi. Di balik reverse proxy HTTPS, cookie sesi otomatis diberi tanda `Secure`.
 - **Streak bareng hanya antar akun di server yang sama.** Dua instalasi Azzifa yang terpisah tidak bisa saling terhubung.
