@@ -65,7 +65,7 @@ Memperbarui setelah ada perubahan kode: `fly deploy` lagi. Datanya aman karena a
 
 1. Di https://railway.app pilih **New Project → Deploy from GitHub repo**, lalu pilih repo `azzifa`. Railway membangun dari `Dockerfile` secara otomatis.
 2. Di layanan itu, tambahkan **Volume** dengan mount path `/app/data`.
-3. Di tab **Variables**, isi `SIGNUP_CODE`, `TRUST_PROXY=1`, dan (opsional) `ANTHROPIC_API_KEY`.
+3. Di tab **Variables**, isi `SIGNUP_CODE`, `TRUST_PROXY=1`, `PORT=3000`, dan (opsional) `ANTHROPIC_API_KEY`.
 4. Di **Settings → Networking**, buat domain publik (port `3000`).
 
 Setiap `git push` ke `main` akan memasang versi baru.

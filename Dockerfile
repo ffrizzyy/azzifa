@@ -16,9 +16,10 @@ COPY server ./server
 COPY scripts ./scripts
 COPY public ./public
 
-# The SQLite file (journal, accounts, pictures) lives here — mount a volume on this path or
-# everything is lost when the container is replaced.
-VOLUME ["/app/data"]
+# The SQLite file (journal, accounts, pictures) lives in /app/data — mount a volume on that path
+# or everything is lost when the container is replaced. There is deliberately no VOLUME
+# instruction: Railway refuses to build an image that has one, and every setup here (compose
+# files, fly.toml, render.yaml, Railway Volumes) mounts the path explicitly anyway.
 
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
