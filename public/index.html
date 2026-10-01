@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script>
+(function(){
+  try{
+    var saved = localStorage.getItem('azzifa_theme');
+    var theme = saved === 'dark' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', theme);
+  }catch(e){}
+})();
+</script>
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<title>Azzifa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600&display=swap" rel="stylesheet">
+<style>
+  /* Structure follows the Kitabisa reference (white pill bar, centred heading, floating white
+     card, full-width pill CTA with chevron, icon grid), kept in Azzifa's own pink palette.
+     One typeface throughout; hierarchy comes from weight, size and colour. */
+  :root{
+    --paper:#FBEEE9; --paper-dim:#F4DFD9; --card:#FFFDFB; --float:#FFFDFB;
+        --ink:#3A222B; --ink-soft:#8A6B74;
+    --rose:#D6456E; --clay:#D6456E; --line:#ECD3CC; --hover:rgba(255,255,255,.55);
+    --shadow-card:0 20px 44px -28px rgba(58,34,43,.30), 0 2px 6px rgba(58,34,43,.05);
+    --shadow-float:0 14px 30px -18px rgba(58,34,43,.30);
+    --r-card:24px; --r-inner:18px; --r-pill:999px; --r-input:16px; --ease:cubic-bezier(.32,.72,0,1);
+    box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  :root[data-theme="dark"]{
+    --paper:#26181C; --paper-dim:#35232A; --card:#302027; --float:#46303A;
+        --ink:#F7E6ED; --ink-soft:#B99AA2;
+    --rose:#E0447E; --clay:#E0447E; --line:#4A3239; --hover:rgba(255,255,255,.07);
+    --shadow-card:0 20px 44px -28px rgba(0,0,0,.6), 0 2px 6px rgba(0,0,0,.2);
+    --shadow-float:0 14px 30px -18px rgba(0,0,0,.6);
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth; scrollbar-gutter:stable;}
+  html,body{height:100%;}
+  body{margin:0; background:var(--paper); color:var(--ink); font-family:'Plus Jakarta Sans',sans-serif; -webkit-font-smoothing:antialiased;}
+  button, input, textarea{font-family:inherit;}
+  .app{max-width:480px; margin:0 auto; padding:0 0 60px; min-height:100%; animation:settle .6s var(--ease) both;}
+  @keyframes settle{from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);}}
+
+  /* ---- Hero (tinted block, rounded bottom) ---- */
+  .hero{padding:16px 20px 24px;}
+  .topbar{display:flex; align-items:center; gap:8px; background:var(--float); border-radius:var(--r-pill); padding:7px 8px 7px 12px; box-shadow:var(--shadow-float);}
+  .topbar-brand{display:flex; align-items:center; gap:9px; min-width:0; flex:1;}
+  .topbar-brand img{width:28px; height:28px; flex-shrink:0; display:block;}
+  .date{font:700 13px 'Plus Jakarta Sans',sans-serif; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .topbar-actions{display:flex; align-items:center; gap:6px; flex-shrink:0;}
+  .streak-pill{display:inline-flex; align-items:center; gap:5px; background:var(--paper-dim); padding:6px 10px; border-radius:var(--r-pill); font:600 12px 'Plus Jakarta Sans',sans-serif; color:var(--ink-soft); white-space:nowrap;}
+  .streak-pill b{color:var(--clay); font-size:13px;}
+  .fire{display:inline-block;}
+  .icon-btn{flex-shrink:0; width:34px; height:34px; border-radius:50%; border:none; background:var(--paper-dim); color:var(--ink-soft); cursor:pointer; display:inline-flex; align-items:center; justify-content:center;}
+  .icon-btn.on{background:var(--clay); color:#fff;}
+  .hero-h{margin:26px 0 10px; font-weight:800; font-size:28px; line-height:1.18; letter-spacing:-0.02em; text-align:center; color:var(--ink);}
+  .brand-name{display:inline-block; padding:0 .3em .08em; border-radius:.4em; background:var(--clay); color:#fff;}
+  .hero-sub{margin:0 auto 24px; max-width:30ch; font-weight:500; font-size:15px; line-height:1.5; text-align:center; color:var(--ink-soft);}
+
+  /* ---- Chat bubble: left aligned, with avatar and name ---- */
+  .chat{display:flex; align-items:flex-end; gap:10px; margin:0 0 20px;}
+  .chat-avatar{flex-shrink:0; width:36px; height:36px; padding:6px; border-radius:50%; background:var(--float); object-fit:contain; box-shadow:var(--shadow-float);}
+  .chat-bubble{min-width:0; max-width:100%; background:var(--float); border-radius:18px 18px 18px 6px; padding:10px 15px 12px; box-shadow:var(--shadow-float);}
+  .chat-stack{display:flex; flex-direction:column; align-items:flex-start; gap:4px; min-width:0; max-width:calc(100% - 48px);}
+  .chat-stack .chat-bubble:not(:last-child){border-bottom-left-radius:8px;}
+  .chat-stack .chat-bubble:not(:first-child){border-top-left-radius:8px;}
+  .chat-bubble.late{transform-origin:0 100%; animation:bubbleIn .5s var(--ease) both;}
+  .chat-name{font:700 11.5px 'Plus Jakarta Sans',sans-serif; color:var(--clay); margin-bottom:2px;}
+  .chat-text{font:500 14.5px/1.55 'Plus Jakarta Sans',sans-serif; color:var(--ink);}
+  .chat-bubble.intro{transform-origin:0 100%; animation:bubbleIn .55s var(--ease) .3s both;}
+  .chat-avatar.intro{animation:bubbleIn .45s var(--ease) .2s both;}
+  @keyframes bubbleIn{from{opacity:0; transform:translateY(8px) scale(.94);} to{opacity:1; transform:none;}}
+
+  /* ---- Tabs: white pill, active tab is the accent pill ---- */
+  .tabs{display:flex; gap:4px; background:var(--float); border-radius:var(--r-pill); padding:4px; box-shadow:var(--shadow-float);}
+  .tabs button{flex:1; border:none; background:transparent; padding:11px 4px; border-radius:var(--r-pill); font:600 14px 'Plus Jakarta Sans',sans-serif; color:var(--ink-soft); cursor:pointer; white-space:nowrap;}
+  .tabs button.active{background:var(--clay); color:#fff; box-shadow:0 10px 18px -10px var(--clay);}
+
+  /* ---- Content: first card floats over the hero edge ---- */
+  .content{padding:0 20px;}
+  .card{background:var(--card); border-radius:var(--r-card); padding:20px; margin-bottom:16px; box-shadow:var(--shadow-card);}
+  .section-h{margin:0 0 16px; font-weight:700; font-size:18px; line-height:1.3; letter-spacing:-0.01em; color:var(--ink);}
+
+  /* ---- Mood: circular icon grid with labels underneath ---- */
+  .mood-card{padding:20px 12px 14px;}
+  .mood-card .section-h{padding:0 8px;}
+  .mood-row{display:grid; grid-template-columns:repeat(5,1fr); gap:4px;}
+  .mood{background:none; border:none; cursor:pointer; padding:6px 2px 8px; border-radius:16px; text-align:center;}
+  .mood .emoji{display:flex; align-items:center; justify-content:center; width:min(56px,100%); aspect-ratio:1; font-size:28px; border-radius:50%; margin:0 auto 8px;}
+  .mood .lbl{display:block; font-size:12.5px; font-weight:500; color:var(--ink);}
+  .mood.sel .emoji{animation:pop .35s var(--ease) both; box-shadow:0 0 0 2px var(--card), 0 0 0 4px var(--clay);}
+  @keyframes pop{0%{transform:scale(1);} 45%{transform:scale(1.2);} 100%{transform:scale(1.06);}}
+
+  /* ---- Writing card ---- */
+  .prompt-label{font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;}
+  .prompt-text{margin:0; font-weight:700; font-size:19px; line-height:1.4; letter-spacing:-0.01em;}
+  .swap{background:none; border:none; color:var(--rose); font:600 13px 'Plus Jakarta Sans',sans-serif; cursor:pointer; padding:0; margin-top:10px;}
+  .field-row{display:flex; gap:8px; margin-top:14px; align-items:flex-start;}
+  textarea{flex:1; width:100%; min-height:130px; border:1px solid var(--line); border-radius:var(--r-input); padding:14px; font:400 15px/1.6 'Plus Jakarta Sans',sans-serif; color:var(--ink); resize:vertical; background:var(--paper);}
+  textarea:focus{outline:2px solid var(--rose); outline-offset:1px;}
+  .mic-btn{flex-shrink:0; width:42px; height:42px; border-radius:50%; border:1px solid var(--line); background:var(--paper); color:var(--ink-soft); cursor:pointer; display:inline-flex; align-items:center; justify-content:center;}
+  .mic-btn.on{background:var(--clay); border-color:var(--clay); color:#fff;}
+  .save{position:relative; width:100%; height:54px; margin-top:16px; background:var(--clay); color:#fff; border:none; border-radius:var(--r-pill); font:700 16px 'Plus Jakarta Sans',sans-serif; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 12px 22px -12px var(--clay);}
+  .save .chev{position:absolute; right:18px; top:50%; margin-top:-9px; display:flex;}
+
+  /* ---- Reminder panel (opens from the bell) ---- */
+  /* ---- Reminder popover: anchored under the bell, floats over content, closes on outside click or Escape ---- */
+  .topbar{position:relative; z-index:10;}
+  .popover{position:absolute; top:calc(100% + 12px); right:0; width:min(320px,100%); background:var(--float); border-radius:var(--r-inner); padding:16px; font-size:13.5px; box-shadow:0 24px 48px -16px rgba(58,34,43,.38), 0 2px 8px rgba(58,34,43,.08); transform-origin:calc(100% - 65px) 0;}
+  .popover::before{content:""; position:absolute; top:-6px; right:59px; width:12px; height:12px; background:var(--float); border-radius:3px 0 0 0; transform:rotate(45deg);}
+  .popover.enter{animation:popIn .28s var(--ease) both;}
+  @keyframes popIn{from{opacity:0; transform:translateY(-6px) scale(.96);} to{opacity:1; transform:none;}}
+  .popover-row{display:flex; align-items:center; justify-content:space-between; gap:14px;}
+  .popover-row + .popover-row{margin-top:14px; padding-top:14px; border-top:1px solid var(--line);}
+  .popover-title{font-weight:700; font-size:14.5px;}
+  .popover-hint{margin-top:3px; max-width:24ch; font-size:12px; line-height:1.45; color:var(--ink-soft); text-wrap:pretty;}
+  .popover input[type=time]{border:1px solid var(--line); border-radius:12px; padding:6px 10px; font:500 13px 'Plus Jakarta Sans',sans-serif; background:var(--paper); color:var(--ink);}
+  .popover-note{margin-top:12px; font-size:12px; color:var(--ink-soft);}
+  .switch{position:relative; width:38px; height:22px; flex-shrink:0;}
+  .switch input{opacity:0; width:0; height:0;}
+  .slider{position:absolute; inset:0; background:var(--line); border-radius:22px; cursor:pointer; transition:.2s;}
+  .slider:before{content:""; position:absolute; width:16px; height:16px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s;}
+  input:checked + .slider{background:var(--rose);}
+  input:checked + .slider:before{transform:translateX(16px);}
+
+  /* ---- Dashboard ---- */
+  .stats{display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;}
+  .stat{flex:1; min-width:90px; background:var(--card); border-radius:var(--r-inner); padding:14px 10px; text-align:center; box-shadow:var(--shadow-card);}
+  .stat b{display:block; font-weight:700; font-size:19px;}
+  .stat span{font-size:11px; color:var(--ink-soft);}
+  /* Mode switch (Check Up / Harian): its own component — this is a top-level choice about how
+     you write today, not a data filter, so it should not look like the Dashboard's date-range pills. */
+  .mode-switch{display:flex; gap:8px; margin-bottom:8px;}
+  .mode-switch button{flex:1; display:flex; align-items:center; justify-content:center; gap:7px; height:46px; border-radius:var(--r-inner); border:1.5px solid var(--line); background:var(--card); color:var(--ink-soft); font:600 13.5px 'Plus Jakarta Sans',sans-serif; cursor:pointer;}
+  .mode-switch button.active{border-color:var(--clay); background:var(--clay); color:#fff; box-shadow:0 10px 20px -12px var(--clay);}
+  .mode-hint{margin:0 0 16px; font-size:12px; line-height:1.5; color:var(--ink-soft);}
+
+  /* Ghost pill: small secondary action with an icon — "Ganti pertanyaan", "Batal mengubah" */
+  .btn-ghost-sm{display:inline-flex; align-items:center; gap:6px; margin-top:10px; padding:7px 14px; border-radius:var(--r-pill); border:1px solid var(--line); background:transparent; color:var(--ink); font:600 12.5px 'Plus Jakarta Sans',sans-serif; cursor:pointer;}
+
+  /* Row action: small icon-only button riding on a note's own header — "Ubah", "Hapus" */
+  .row-head{display:flex; align-items:flex-start; justify-content:space-between; gap:10px;}
+  .icon-ghost{flex-shrink:0; width:28px; height:28px; border-radius:50%; border:none; background:transparent; color:var(--ink-soft); cursor:pointer; display:inline-flex; align-items:center; justify-content:center;}
+
+  .range-toggle{display:flex; gap:6px; margin-bottom:16px;}
+  .range-toggle button{border:1px solid var(--line); background:var(--card); border-radius:var(--r-pill); padding:7px 16px; font:600 12.5px 'Plus Jakarta Sans',sans-serif; color:var(--ink-soft); cursor:pointer;}
+  .range-toggle button.active{background:var(--clay); color:#fff; border-color:var(--clay);}
+  .chart-summary{font-size:13.5px; color:var(--ink-soft); margin-top:14px; line-height:1.5;}
+  .chart-draw{animation:reveal .7s var(--ease) both;}
+  @keyframes reveal{from{clip-path:inset(0 100% 0 0);} to{clip-path:inset(0 0 0 0);}}
+  .insight-box{background:var(--paper-dim); border-radius:16px; padding:14px; margin-top:14px; font-size:13.5px; line-height:1.6;}
+  .insight-box .lbl{font-size:11px; color:var(--ink-soft); margin-bottom:6px;}
+
+  /* ---- History ---- */
+  .actions{display:flex; gap:8px; margin-bottom:16px;}
+  .actions button{flex:1; border:1px solid var(--line); background:var(--card); border-radius:var(--r-pill); padding:11px; font:600 13px 'Plus Jakarta Sans',sans-serif; color:var(--ink); cursor:pointer;}
+  .entry{border-bottom:1px solid var(--line); padding:16px 2px;}
+  .entry:last-child{border-bottom:none; padding-bottom:0;}
+  .entry-head{display:flex; align-items:center; gap:8px; margin-bottom:6px;}
+  .dot{width:9px; height:9px; border-radius:50%; flex-shrink:0;}
+  .entry-date{font-size:12.5px; color:var(--ink-soft);}
+  .entry-prompt{font-size:12.5px; color:var(--ink-soft); font-style:italic; margin-bottom:5px; flex:1; min-width:0;}
+  .entry-text{font-size:15px; line-height:1.5;}
+  .empty{text-align:center; padding:50px 10px; color:var(--ink-soft); line-height:1.6;}
+  .empty svg{display:block; margin:0 auto;}
+
+  /* ---- Toast ---- */
+  .toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(10px) scale(.96); background:var(--ink); color:var(--paper); padding:10px 18px; border-radius:var(--r-pill); font-size:13.5px; opacity:0; transition:opacity .3s var(--ease), transform .3s var(--ease); pointer-events:none; z-index:20; max-width:90%; text-align:center;}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0) scale(1);}
+
+  /* ---- Type polish ---- */
+  .hero-h{text-wrap:balance;}
+  .hero-sub, .chat-text, .prompt-text, .chart-summary, .insight-box{text-wrap:pretty;}
+  .stat b, .streak-pill b{font-variant-numeric:tabular-nums;}
+
+  /* ---- Transitions on every interactive element ---- */
+  .tabs button, .mood, .mood .emoji, .mood .lbl, .save, .save .chev, .icon-btn, .mic-btn, .actions button, .range-toggle button, .mode-switch button, .btn-ghost-sm, .icon-ghost, .stat, .dot, .entry-date, .topbar-brand img{
+    transition:transform .25s var(--ease), color .25s var(--ease), background-color .25s var(--ease), border-color .25s var(--ease), box-shadow .25s var(--ease);}
+  .swap{background:linear-gradient(currentColor,currentColor) 0 100%/0 1px no-repeat; transition:background-size .3s var(--ease);}
+  @keyframes flicker{0%,100%{transform:scale(1) rotate(0);} 30%{transform:scale(1.22) rotate(-7deg);} 60%{transform:scale(1.1) rotate(6deg);}}
+
+  /* ---- Hover: pointer devices only, so touch screens never get a stuck hover ---- */
+  @media (hover:hover) and (pointer:fine){
+    .tabs button:not(.active):hover{color:var(--ink); background:var(--paper-dim);}
+    .mood:not(.sel):hover{background:var(--paper);}
+    .mood:not(.sel):hover .emoji{transform:translateY(-3px) scale(1.06);}
+    .save:hover{transform:translateY(-2px); box-shadow:0 16px 28px -14px var(--clay);}
+    .save:hover .chev{transform:translateX(3px);}
+    .icon-btn:not(.on):hover{color:var(--clay); transform:translateY(-1px);}
+    .actions button:hover, .mic-btn:not(.on):hover{border-color:var(--clay); color:var(--clay); transform:translateY(-1px);}
+    .range-toggle button:not(.active):hover{border-color:var(--clay); color:var(--clay);}
+    .mode-switch button:not(.active):hover{border-color:var(--clay); color:var(--clay);}
+    .btn-ghost-sm:hover{border-color:var(--clay); color:var(--clay);}
+    .icon-ghost:hover{background:var(--paper-dim); color:var(--clay);}
+    .stat:hover{transform:translateY(-2px);}
+    .entry:hover .dot{transform:scale(1.5);}
+    .entry:hover .entry-date{color:var(--ink);}
+    .topbar-brand img:hover{transform:rotate(-8deg) scale(1.1);}
+    .streak-pill:hover .fire{animation:flicker .6s ease-in-out;}
+    .swap:hover{background-size:100% 1px;}
+    /* pressed state must beat hover, otherwise a click keeps the lifted pose */
+    .save:active{transform:translateY(0) scale(.98);}
+    .icon-btn:active, .mic-btn:active, .actions button:active, .mode-switch button:active, .btn-ghost-sm:active, .icon-ghost:active{transform:scale(.96);}
+  }
+  .tabs button:active, .mood:active{transform:scale(.96);}
+
+  /* ---- Keyboard focus (accessibility, not optional) ---- */
+  button:focus-visible, input:focus-visible{outline:2px solid var(--rose); outline-offset:2px;}
+  .tabs button.active:focus-visible, .save:focus-visible, .icon-btn.on:focus-visible{outline-color:var(--ink);}
+  .switch input:focus-visible + .slider{outline:2px solid var(--rose); outline-offset:2px;}
+
+  /* ---- Skeleton loading state for the weekly insight ---- */
+  .skeleton span{display:block; position:relative; overflow:hidden; height:10px; border-radius:6px; margin-bottom:8px; background:var(--line);}
+  .skeleton span.short{width:60%; margin-bottom:0;}
+  .skeleton span::after{content:""; position:absolute; inset:0; transform:translateX(-100%); background:linear-gradient(90deg, transparent, var(--hover), transparent); animation:sweep 1.4s var(--ease) infinite;}
+  @keyframes sweep{to{transform:translateX(100%);}}
+
+  /* ---- Follow-up chat bubble keeps a fixed height so the tabs never jump between screens ---- */
+  .chat-stack .chat-bubble:not(:first-child){min-height:67px; display:flex; align-items:center;}
+  .chat-bubble.ghost{visibility:hidden;}
+
+  /* ---- Notes written today ---- */
+  .note{padding:14px 0; border-bottom:1px solid var(--line);}
+  .note:first-of-type{padding-top:0;}
+  .note:last-child{border-bottom:none; padding-bottom:0;}
+  .note-q{margin-bottom:4px; font-size:12.5px; font-style:italic; color:var(--ink-soft);}
+  .note-t{font-size:14.5px; line-height:1.5; white-space:pre-line; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;}
+  .entry-text{white-space:pre-line;}
+  .entry-text + .entry-prompt{margin-top:14px;}
+  /* One day can hold several notes now — a lighter dashed rule marks the boundary between them,
+     kept visually distinct from the solid rule .entry already uses to mark day boundaries. */
+  .note-block.divider{margin-top:14px; padding-top:14px; border-top:1px dashed var(--line);}
+  .confirm-row{display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-top:10px; font-size:12.5px; color:var(--ink-soft);}
+  .btn-ghost-sm.danger{border-color:var(--rose); color:var(--rose);}
+  @media (hover:hover) and (pointer:fine){ .btn-ghost-sm.danger:hover{background:var(--rose); color:#fff;} }
+
+  /* ---- AI summary card (History) ---- */
+  .summary .range-toggle{margin-bottom:14px;}
+  .summary .skeleton{margin-bottom:14px;}
+  .summary-hint{margin:0; font-size:13.5px; line-height:1.55; color:var(--ink-soft);}
+  .summary-text{margin:0 0 6px; font-size:14.5px; line-height:1.65; white-space:pre-line;}
+  .summary-meta{margin:0 0 14px; font-size:12px; color:var(--ink-soft);}
+  .summary-err{margin:0 0 12px; font-size:13px; color:var(--rose);}
+  .summary-privacy{margin:10px 0 0; font-size:11.5px; line-height:1.5; color:var(--ink-soft);}
+  .progress{height:8px; margin-top:14px; border-radius:var(--r-pill); background:var(--paper-dim); overflow:hidden;}
+  .progress span{display:block; height:100%; border-radius:var(--r-pill); background:var(--clay);}
+  .btn-soft{width:100%; height:48px; border-radius:var(--r-pill); border:1.5px solid var(--clay); background:transparent; color:var(--clay); font:700 14.5px 'Plus Jakarta Sans',sans-serif; cursor:pointer; transition:transform .25s var(--ease), background-color .25s var(--ease), color .25s var(--ease);}
+  .btn-soft:disabled{opacity:.55; cursor:default;}
+  .btn-soft:active:not(:disabled){transform:scale(.98);}
+  @media (hover:hover) and (pointer:fine){ .btn-soft:not(:disabled):hover{background:var(--clay); color:#fff;} }
+
+  /* ---- Print report ---- */
+  #printArea{display:none;}
+  @media print{
+    body *{visibility:hidden;}
+    #printArea, #printArea *{visibility:visible;}
+    #printArea{display:block; position:absolute; top:0; left:0; width:100%; padding:20px;}
+  }
+
+  /* ---- One global switch for people who ask for less motion ---- */
+  @media (prefers-reduced-motion: reduce){
+    html{scroll-behavior:auto;}
+    *, *::before, *::after{animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important;}
+  }
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+<div class="toast" id="toast"></div>
+<div id="printArea"></div>
+
+<script>
+const LOGO_URI = "data:image/png;base64,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";
+const PROMPTS = [
+  "Ceritain kegiatanmu hari ini dari pagi sampai sekarang, urut aja.",
+  "Apa yang pertama kamu kerjain hari ini?",
+  "Hari ini kamu paling banyak ngabisin waktu buat apa?",
+  "Apa aja yang udah kamu selesaikan hari ini, sekecil apa pun?",
+  "Ada rencana hari ini yang nggak jalan? Apa yang terjadi?",
+  "Kamu ketemu atau ngobrol sama siapa aja hari ini?",
+  "Ada obrolan hari ini yang masih kepikiran? Ceritain.",
+  "Kamu makan apa hari ini, dan di mana?",
+  "Kamu pergi ke mana aja hari ini?",
+  "Bagian mana dari hari ini yang paling padat atau bikin capek?",
+  "Ada kejadian hari ini yang nggak kamu duga?",
+  "Bagian mana dari hari ini yang paling kamu nikmatin?",
+  "Kapan kamu sempat istirahat hari ini, dan ngapain aja?",
+  "Apa yang kamu tunda hari ini, dan kenapa?",
+  "Kerjaan atau tugas apa yang paling menyita pikiran hari ini?",
+  "Hal kecil apa yang bikin harimu sedikit lebih ringan?",
+  "Apa yang baru kamu pelajari hari ini, sekecil apa pun?",
+  "Ada yang bikin kesel atau kecewa hari ini? Apa penyebabnya?",
+  "Apa yang bikin kamu senyum hari ini?",
+  "Gimana energimu sepanjang hari? Kapan naik, kapan turun?",
+  "Apa satu hal yang mau kamu kerjain lebih baik besok?",
+  "Apa rencanamu besok, walau cuma satu hal?",
+  "Kalau hari ini dikasih judul, apa judulnya? Ceritain isinya.",
+  "Selesaikan kalimat ini: 'Hari ini aku paling ...'",
+  "Gimana tidurmu semalam, dan pengaruhnya ke hari ini?",
+  "Ada momen hari ini yang pengin kamu ingat nanti?",
+  "Apa yang kamu lakuin hari ini cuma buat diri sendiri?",
+  "Satu hal dari hari ini yang bikin kamu mikir, 'untung tadi ...'"
+];
+const SAVE_MESSAGES = [
+  "Sudah ditulis. Terima kasih sudah meluangkan waktu ini.",
+  "Tersimpan. Nggak ada yang salah dari apa yang kamu tulis.",
+  "Selesai. Kamu baru saja kasih waktu ke diri sendiri.",
+  "Tercatat. Sekecil apapun ini, tetap berarti.",
+  "Tersimpan, ya. Sampai jumpa besok.",
+  "Sudah aman tersimpan. Istirahat dulu.",
+  "Terima kasih sudah cerita hari ini.",
+  "Tersimpan. Semoga sisa harimu lebih ringan."
+];
+// Fixed, chronological sequence for "Harian" mode — unlike PROMPTS (random pool for Check Up),
+// these always appear in this order so the four answers add up to one full day by the end.
+const DAILY_STEPS = [
+  "Ceritain kegiatanmu dari pagi sampai siang tadi.",
+  "Gimana lanjutan hari ini pas sore?",
+  "Ada kejadian, obrolan, atau momen yang masih nempel di kepala hari ini?",
+  "Sebelum nutup hari ini, gimana perasaanmu sekarang?"
+];
+const MOOD_ORDER = ['berat','cemas','biasa','tenang','senang'];
+const MOODS = [
+  {k:'berat', e:'😞', l:'Berat', c:'#B5726B'},
+  {k:'cemas', e:'😟', l:'Cemas', c:'#C97B5A'},
+  {k:'biasa', e:'😐', l:'Biasa', c:'#C7B78A'},
+  {k:'tenang', e:'🙂', l:'Tenang', c:'#8B9D83'},
+  {k:'senang', e:'😄', l:'Senang', c:'#7FA88F'},
+];
+const ICONS = {
+  mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"/><path d="M19 11a7 7 0 0 1-14 0"/><line x1="12" y1="19" x2="12" y2="22"/></svg>',
+  bell: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M6 8a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 21a2 2 0 0 0 4 0"/></svg>',
+  sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" width="15" height="15"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+  moon: '<svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>',
+};
+ICONS.chev = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M9 6l6 6-6 6"/></svg>';
+ICONS.pencil = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+ICONS.trash = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
+ICONS.refresh = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M21 12a9 9 0 1 1-3-6.7"/><polyline points="21 3 21 9 15 9"/></svg>';
+ICONS.checkCircle = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 5-5"/></svg>';
+ICONS.calendar = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
+const EMPTY_ILLUSTRATION = `<svg viewBox="0 0 100 100" width="60" height="60" fill="none">
+  <path d="M20 66V45a30 30 0 0 1 60 0v21" stroke="var(--line)" stroke-width="9" stroke-linecap="round"/>
+  <path d="M32 66V48a18 18 0 0 1 36 0v18" stroke="var(--rose)" stroke-width="9" stroke-linecap="round" opacity=".55"/>
+  <circle cx="50" cy="52" r="6.5" fill="var(--rose)"/>
+</svg>`;
+const KEY='azzifa_entries', RKEY='azzifa_reminder', IKEY='azzifa_insight';
+const load=()=>{ try{return JSON.parse(localStorage.getItem(KEY))||[];}catch(e){return [];} };
+const save=(arr)=>{ try{localStorage.setItem(KEY, JSON.stringify(arr));}catch(e){} };
+const loadReminder=()=>{ try{return JSON.parse(localStorage.getItem(RKEY))||{enabled:false,time:'20:00'};}catch(e){return {enabled:false,time:'20:00'};} };
+const saveReminder=(r)=>{ try{localStorage.setItem(RKEY, JSON.stringify(r));}catch(e){} };
+let entries = [];
+let reminder = {enabled:false, time:'20:00'};
+let tab = 'today';
+let selectedMood = null;
+let draftText = null;
+let promptIdx = Math.floor(Math.random()*PROMPTS.length);
+let chartRange = 7;
+let showSettings = false;
+let introPlayed = false;
+let entriesReady = false;
+let popoverFresh = false;
+let nudgeShown = false;
+let editingIdx = null;
+let stashedDraft = null;
+let promptSynced = false;
+let dayMode = 'checkup';
+let daySummaryLoading = false;
+let daySummaryErr = null;
+let confirmDeleteKey = null;
+let summaryText = null;
+let summaryAt = null;
+let summaryRange = 7;
+let summaryLoading = false;
+let summaryErr = null;
+let notifiedToday = false;
+let dashboardInsight = null;
+let insightWeekCached = null;
+let insightLoading = false;
+// ---------- Storage backend: real Express + SQLite API ----------
+async function initStorage(){
+  try{
+    const [entriesRes, settingsRes] = await Promise.all([
+      fetch('/api/entries').then(r=>r.json()),
+      fetch('/api/settings').then(r=>r.json())
+    ]);
+    entries = entriesRes;
+    reminder = {enabled: !!settingsRes.reminderEnabled, time: settingsRes.reminderTime || '20:00'};
+    insightWeekCached = settingsRes.insightWeek || null;
+    dashboardInsight = settingsRes.insightWeek===weekKey() ? (settingsRes.insightText||null) : null;
+    summaryText = settingsRes.summaryText || null; summaryAt = settingsRes.summaryAt || null;
+    if(settingsRes.summaryRange) summaryRange = settingsRes.summaryRange;
+    if(settingsRes.dayMode==='daily') dayMode='daily';
+    entriesReady = true; syncPromptOnce();
+  }catch(e){
+    entriesReady = true;
+    showToast('Tidak bisa terhubung ke server. Pastikan `npm start` sedang berjalan.');
+  }
+  render();
+}
+function persistProfile(patch){
+  fetch('/api/settings', {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(patch)})
+    .catch(()=>showToast('Gagal menyimpan pengaturan ke server'));
+}
+
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function setDayMode(m){ if(dayMode===m) return; dayMode=m; persistProfile({dayMode:m}); render(); }
+async function persistEntry(entry){
+  const res = await fetch(`/api/entries/${entry.date}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(entry)});
+  if(!res.ok) throw new Error('bad status');
+}
+async function deleteEntryDoc(date){
+  const res = await fetch(`/api/entries/${date}`, {method:'DELETE'});
+  if(!res.ok) throw new Error('bad status');
+}
+function askDeleteNote(date, idx){ confirmDeleteKey = date+'::'+idx; render(); }
+function cancelDeleteNote(){ confirmDeleteKey = null; render(); }
+// No window.confirm() here on purpose — Claude's published-artifact iframe blocks native dialogs
+// (no `allow-modals`), so confirm() returns falsy instantly and the delete silently never fires.
+// This is an in-page two-step confirm instead: tap trash, a "Ya, hapus / Batal" row replaces it.
+async function deleteNote(date, idx){
+  confirmDeleteKey = null;
+  const existing = entries.find(e=>e.date===date);
+  if(!existing) return;
+  const notes = notesOf(existing).filter((_,i)=>i!==idx);
+  try{
+    if(notes.length===0){
+      await deleteEntryDoc(date);
+      entries = entries.filter(e=>e.date!==date);
+    } else {
+      const entry = {...existing, notes, prompt:notes[0].prompt, text:notes.map(n=>n.text).join('\n\n'), updatedAt:Date.now()};
+      await persistEntry(entry);
+      entries = [...entries.filter(e=>e.date!==date), entry];
+    }
+  }catch(e){ showToast('Gagal menghapus, coba lagi'); return; }
+  if(editingIdx!==null && date===todayStr()) cancelEdit();
+  showToast('Catatan dihapus'); render();
+}
+function getGreeting(){
+  const h=new Date().getHours();
+  if(h<5) return "Masih melek? Kalau butuh cerita, aku di sini.";
+  if(h<11) return "Pagi. Nggak perlu buru-buru, jalanin aja pelan-pelan.";
+  if(h<15) return "Siang. Udah sempat tarik napas belum?";
+  if(h<19) return "Sore. Capek, kesel, atau biasa aja — semuanya boleh.";
+  return "Malam. Taruh dulu apa yang kamu bawa hari ini.";
+}
+function fmtDate(d){ return new Date(d).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}); }
+function fmtShort(d){ return new Date(d).toLocaleDateString('id-ID',{day:'numeric',month:'short'}); }
+function moodInfo(k){ return MOODS.find(m=>m.k===k) || MOODS[2]; }
+function hasEntryToday(){ return !!entries.find(e=>e.date===todayStr()); }
+const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+// A day can hold several notes. Older entries (one prompt + one text) are read as a single note.
+function notesOf(e){ return Array.isArray(e.notes) && e.notes.length ? e.notes : [{prompt:e.prompt||'', text:e.text||'', at:e.updatedAt||0}]; }
+function textOf(e){ return notesOf(e).map(n=>n.text).join('\n\n'); }
+function todayNotes(){ const e=entries.find(x=>x.date===todayStr()); return e?notesOf(e):[]; }
+function totalNotes(){ return entries.reduce((n,e)=>n+notesOf(e).length,0); }
+function pickPrompt(notes){
+  const used=new Set((notes||todayNotes()).map(n=>n.prompt));
+  const all=PROMPTS.map((_,i)=>i).filter(i=>i!==promptIdx);
+  const fresh=all.filter(i=>!used.has(PROMPTS[i]));
+  const pool=fresh.length?fresh:all;
+  return pool[Math.floor(Math.random()*pool.length)];
+}
+function syncPromptOnce(){ if(promptSynced) return; promptSynced=true; promptIdx=pickPrompt(); }
+function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 3200); }
+function getTheme(){ return document.documentElement.getAttribute('data-theme')==='dark' ? 'dark' : 'light'; }
+function toggleTheme(){
+  const next = getTheme()==='dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  try{ localStorage.setItem('azzifa_theme', next); }catch(e){}
+  render();
+}
+
+function rollingCheckins(n=7){
+  const days=new Set(entries.map(e=>e.date));
+  let count=0;
+  for(let i=0;i<n;i++){ const d=new Date(); d.setDate(d.getDate()-i); if(days.has(d.toISOString().slice(0,10))) count++; }
+  return count;
+}
+function longestStreakEver(){
+  const sortedDays=[...new Set(entries.map(e=>e.date))].sort();
+  let longest=0,current=0,prev=null;
+  sortedDays.forEach(d=>{
+    current = prev && (new Date(d)-new Date(prev))/86400000===1 ? current+1 : 1;
+    longest=Math.max(longest,current); prev=d;
+  });
+  return longest;
+}
+function entriesThisMonth(){ const ym=todayStr().slice(0,7); return entries.filter(e=>e.date.startsWith(ym)).reduce((n,e)=>n+notesOf(e).length,0); }
+function hardestDayInfo(){
+  const buckets={}; const dayNames=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+  entries.forEach(e=>{
+    const d=new Date(e.date).getDay(); const v=MOOD_ORDER.indexOf(e.mood)+1;
+    if(!buckets[d]) buckets[d]={sum:0,count:0};
+    buckets[d].sum+=v; buckets[d].count++;
+  });
+  let worst=null;
+  Object.entries(buckets).forEach(([d,b])=>{ const avg=b.sum/b.count; if(!worst||avg<worst.avg) worst={day:dayNames[d],avg}; });
+  return worst;
+}
+
+// ---------- Voice input (shared) ----------
+let recognizer=null, micTarget=null, micActive=false, micIntentionalStop=false;
+function getRecognizer(){
+  const SR = window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR) return null;
+  if(!recognizer){
+    recognizer=new SR(); recognizer.lang='id-ID'; recognizer.continuous=true; recognizer.interimResults=true;
+    recognizer.onresult=(ev)=>{
+      let finalText='';
+      for(let i=ev.resultIndex;i<ev.results.length;i++){ if(ev.results[i].isFinal) finalText+=ev.results[i][0].transcript; }
+      if(finalText && micTarget){
+        const el=document.getElementById(micTarget);
+        if(el){ el.value += (el.value?' ':'')+finalText.trim(); if(micTarget==='entryText') draftText=el.value; }
+      }
+    };
+    recognizer.onerror=(ev)=>{
+      if(ev.error==='not-allowed' || ev.error==='service-not-allowed'){
+        micIntentionalStop=true; showToast('Izin mikrofon ditolak — aktifkan lewat pengaturan browser');
+      } else if(ev.error!=='no-speech'){
+        micIntentionalStop=true; showToast('Input suara terganggu, coba lagi');
+      }
+      // 'no-speech' is harmless — onend will decide whether to keep listening
+    };
+    recognizer.onend=()=>{
+      if(micActive && !micIntentionalStop){
+        try{ recognizer.start(); return; }catch(e){}
+      }
+      micActive=false; micTarget=null; renderMicButtons();
+    };
+  }
+  return recognizer;
+}
+function renderMicButtons(){
+  document.querySelectorAll('.mic-btn').forEach(b=>{
+    b.classList.toggle('on', micActive && b.dataset.target===micTarget);
+  });
+}
+function toggleMic(targetId){
+  const r=getRecognizer();
+  if(!r){ showToast('Input suara tidak didukung di browser ini'); return; }
+  const el=document.getElementById(targetId);
+  if(micActive && micTarget===targetId){
+    micIntentionalStop=true; micActive=false; micTarget=null; r.stop();
+  } else {
+    if(micActive){ micIntentionalStop=true; r.stop(); }
+    micIntentionalStop=false; micTarget=targetId; micActive=true;
+    if(targetId==='entryText') draftText = el?el.value:draftText;
+    try{ r.start(); }catch(e){}
+  }
+  renderMicButtons();
+}
+
+// ---------- Reminders ----------
+function toggleReminder(on){
+  reminder.enabled = on;
+  persistProfile({reminderEnabled:on, reminderTime:reminder.time});
+  if(on && 'Notification' in window && Notification.permission==='default'){
+    Notification.requestPermission().then(p=>{ if(p!=='granted') showToast('Izin notifikasi tidak diberikan, banner tetap aktif'); });
+  }
+  render();
+}
+function setReminderTime(t){ reminder.time=t; persistProfile({reminderEnabled:reminder.enabled, reminderTime:t}); }
+function checkReminderTick(){
+  if(!reminder.enabled || hasEntryToday()) return;
+  if(!('Notification' in window) || Notification.permission!=='granted') return;
+  const now=new Date(); const hh=String(now.getHours()).padStart(2,'0'); const mm=String(now.getMinutes()).padStart(2,'0');
+  if(`${hh}:${mm}`===reminder.time && !notifiedToday){ notifiedToday=true; try{ new Notification('Azzifa',{body:'Waktunya check-in sebentar. Tidak perlu panjang.'}); }catch(e){} }
+}
+setInterval(checkReminderTick, 30000);
+
+// ---------- Today tab ----------
+function syncDraft(){ const ta=document.getElementById('entryText'); if(ta) draftText=ta.value; }
+function openSettings(){ syncDraft(); showSettings = !showSettings; popoverFresh = showSettings; render(); }
+function closeSettings(refocus){
+  if(!showSettings) return;
+  syncDraft(); showSettings = false; render();
+  if(refocus) document.querySelector('.bell-btn')?.focus();
+}
+document.addEventListener('click', e=>{
+  if(!showSettings) return;
+  const inside = e.composedPath().some(n=>n.classList && (n.classList.contains('popover') || n.classList.contains('bell-btn')));
+  if(!inside) closeSettings(false);
+});
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeSettings(true); });
+function renderSettingsPanel(fresh){
+  const notifSupported = 'Notification' in window;
+  return `
+    <div class="popover${fresh?' enter':''}" role="dialog" aria-label="Pengingat harian">
+      <div class="popover-row">
+        <div>
+          <div class="popover-title">Pengingat harian</div>
+          <div class="popover-hint">Notifikasi muncul di jam ini kalau kamu belum check-in, selama tab ini masih terbuka.</div>
+        </div>
+        <label class="switch"><input type="checkbox" ${reminder.enabled?'checked':''} onchange="toggleReminder(this.checked)" aria-label="Aktifkan pengingat harian"><span class="slider"></span></label>
+      </div>
+      <div class="popover-row"><span>Jam pengingat</span><input type="time" value="${reminder.time}" onchange="setReminderTime(this.value)"></div>
+      ${!notifSupported ? '<div class="popover-note">Notifikasi tidak didukung di browser ini, jadi pengingat hanya berupa pesan di sini.</div>' : ''}
+    </div>`;
+}
+function renderToday(){
+  const notes = todayNotes();
+  const editing = editingIdx!==null && notes[editingIdx] ? notes[editingIdx] : null;
+  const dailyDone = dayMode==='daily' && notes.length>=DAILY_STEPS.length && !editing;
+  const promptShown = editing ? editing.prompt : (dayMode==='daily' ? (DAILY_STEPS[notes.length] || DAILY_STEPS[DAILY_STEPS.length-1]) : PROMPTS[promptIdx]);
+  const val = draftText!==null ? draftText : (editing ? editing.text : '');
+  const todayEntry = entries.find(e=>e.date===todayStr());
+  const daySummary = todayEntry && todayEntry.daySummary ? todayEntry.daySummary : null;
+
+  const modeSwitch = `
+    <div class="mode-switch" role="group" aria-label="Mode catatan hari ini">
+      <button class="${dayMode==='checkup'?'active':''}" onclick="syncDraft(); setDayMode('checkup')">${ICONS.checkCircle}Check Up</button>
+      <button class="${dayMode==='daily'?'active':''}" onclick="syncDraft(); setDayMode('daily')">${ICONS.calendar}Harian</button>
+    </div>
+    <p class="mode-hint">${dayMode==='daily' ? `${DAILY_STEPS.length} langkah tetap yang berakhir dengan rangkuman hari ini.` : 'Satu pertanyaan bebas, bisa diganti kapan saja.'}</p>`;
+
+  const writingCard = dailyDone ? '' : `
+    <section class="card">
+      <div class="prompt-label">${editing ? 'Kamu sedang mengubah catatan ini' : (dayMode==='daily' ? `Langkah ${Math.min(notes.length+1,DAILY_STEPS.length)} dari ${DAILY_STEPS.length}` : 'Pertanyaan hari ini')}</div>
+      <p class="prompt-text">${esc(promptShown)}</p>
+      ${editing ? `<button class="btn-ghost-sm" onclick="cancelEdit()">Batal mengubah</button>` : (dayMode==='checkup' ? `<button class="btn-ghost-sm" onclick="syncDraft(); swapPrompt()">${ICONS.refresh}Ganti pertanyaan</button>` : '')}
+      <div class="field-row">
+        <textarea id="entryText" placeholder="Tulis apa saja, tidak perlu rapi...">${esc(val)}</textarea>
+        <button class="mic-btn" data-target="entryText" onclick="toggleMic('entryText')" title="Bicara" aria-label="Dikte suara">${ICONS.mic}</button>
+      </div>
+      <button class="save" onclick="saveEntry()"><span>${editing?'Perbarui catatan':'Simpan'}</span><span class="chev" aria-hidden="true">${ICONS.chev}</span></button>
+    </section>`;
+
+  const daySummaryCard = (dayMode==='daily' && notes.length>=DAILY_STEPS.length) ? `
+    <section class="card summary" aria-busy="${daySummaryLoading}">
+      <h2 class="section-h">Rangkuman hari ini</h2>
+      ${daySummaryLoading
+        ? '<div class="skeleton" role="status" aria-label="Membuat rangkuman"><span></span><span></span><span class="short"></span></div>'
+        : (daySummary
+            ? `<p class="summary-text">${esc(daySummary.text)}</p><p class="summary-meta">Dibuat ${fmtDate(daySummary.at)}</p>`
+            : `<p class="summary-hint">Semua langkah hari ini sudah kamu isi. Buat rangkumannya?</p>`)}
+      ${daySummaryErr ? `<p class="summary-err" role="alert">${esc(daySummaryErr)}</p>` : ''}
+      <button class="btn-soft" onclick="generateDaySummary()" ${daySummaryLoading?'disabled':''}>${daySummary?'Buat ulang rangkuman':'Rangkum hari ini'}</button>
+      <p class="summary-privacy">Catatan hari ini dikirim ke Claude untuk dirangkum.</p>
+    </section>` : '';
+
+  return `
+    <section class="card mood-card" aria-labelledby="mood-h">
+      <h2 class="section-h" id="mood-h">Gimana perasaanmu hari ini?</h2>
+      <div class="mood-row" role="group" aria-label="Pilih mood">
+        ${MOODS.map(m=>`<button class="mood ${selectedMood===m.k?'sel':''}" aria-pressed="${selectedMood===m.k}" onclick="syncDraft(); selectMood('${m.k}')"><span class="emoji" style="background:${m.c}${selectedMood===m.k?'40':'26'}">${m.e}</span><span class="lbl">${m.l}</span></button>`).join('')}
+      </div>
+    </section>
+    ${modeSwitch}
+    ${writingCard}
+    ${daySummaryCard}
+    ${notes.length ? `<section class="card">
+      <h2 class="section-h">Catatan hari ini</h2>
+      ${notes.map((n,i)=>`<div class="note">
+        <div class="row-head">
+          <div class="note-q">${esc(n.prompt)}</div>
+          <button class="icon-ghost" onclick="editNote(${i})" title="Ubah catatan" aria-label="Ubah catatan">${ICONS.pencil}</button>
+        </div>
+        <div class="note-t">${esc(n.text)}</div>
+      </div>`).join('')}
+    </section>` : ''}
+  `;
+}
+function setTab(t){ tab=t; if(t==='trend') ensureInsight(); render(); }
+function selectMood(k){ selectedMood=k; render(); document.getElementById('entryText')?.focus(); }
+function swapPrompt(){ promptIdx=pickPrompt(); render(); }
+function editNote(i){
+  syncDraft(); if(editingIdx===null) stashedDraft=draftText;
+  editingIdx=i; draftText=null; render();
+  const ta=document.getElementById('entryText');
+  if(ta){ ta.focus(); ta.scrollIntoView({behavior:'smooth', block:'center'}); }
+}
+function cancelEdit(){ editingIdx=null; draftText=stashedDraft; stashedDraft=null; render(); }
+async function saveEntry(){
+  const text=document.getElementById('entryText').value.trim();
+  if(!text){ showToast('Tulis dulu sedikit sebelum menyimpan'); return; }
+  const date=todayStr();
+  const existing=entries.find(e=>e.date===date);
+  const notes=existing ? notesOf(existing).map(n=>({...n})) : [];
+  const wasEditing = editingIdx!==null && !!notes[editingIdx];
+  if(wasEditing){ notes[editingIdx].text=text; }
+  else{
+    const stepPrompt = dayMode==='daily' ? (DAILY_STEPS[notes.length] || DAILY_STEPS[DAILY_STEPS.length-1]) : PROMPTS[promptIdx];
+    notes.push({prompt:stepPrompt, text, at:Date.now()});
+  }
+  const mood=selectedMood || (existing && existing.mood) || 'biasa';
+  const entry={date, mood, prompt:notes[0].prompt, text:notes.map(n=>n.text).join('\n\n'), notes, updatedAt:Date.now()};
+  if(existing && existing.daySummary) entry.daySummary = existing.daySummary;
+  try{ await persistEntry(entry); }
+  catch(e){ showToast('Gagal menyimpan, coba lagi'); return; }
+  entries=[...entries.filter(e=>e.date!==date), entry];
+  selectedMood=null; editingIdx=null;
+  if(wasEditing){ draftText=stashedDraft; stashedDraft=null; }
+  else{ draftText=null; promptIdx=pickPrompt(notes); }   // next Check Up question appears on its own
+  showToast(SAVE_MESSAGES[Math.floor(Math.random()*SAVE_MESSAGES.length)]); render();
+  if(!wasEditing && dayMode==='daily' && notes.length===DAILY_STEPS.length){
+    generateDaySummary();   // fourth step just landed — wrap the day up automatically
+  }
+}
+
+// ---------- Day summary (Harian mode, today only) ----------
+async function generateDaySummary(){
+  if(daySummaryLoading) return;
+  const notes = todayNotes();
+  if(notes.length===0){ daySummaryErr='Belum ada catatan hari ini.'; render(); return; }
+  daySummaryLoading=true; daySummaryErr=null; render();
+  try{
+    const res = await fetch(`/api/entries/${todayStr()}/day-summary`, {method:'POST'});
+    const data = await res.json();
+    if(!res.ok){ daySummaryErr = data.error || 'Gagal membuat rangkuman. Coba lagi sebentar lagi.'; }
+    else{
+      const existing = entries.find(e=>e.date===todayStr());
+      const entry = {...existing, daySummary:{text:data.text, at:data.at}};
+      entries=[...entries.filter(e=>e.date!==entry.date), entry];
+    }
+  }catch(e){ daySummaryErr='Tidak bisa menghubungi server.'; }
+  daySummaryLoading=false; render();
+}
+
+// ---------- Dashboard tab ----------
+function seriesForRange(n){
+  const byDate={}; entries.forEach(e=>byDate[e.date]=e);
+  const days=[];
+  for(let i=n-1;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i); const s=d.toISOString().slice(0,10); const e=byDate[s];
+    days.push({date:s, value: e?MOOD_ORDER.indexOf(e.mood)+1:null, mood: e?e.mood:null}); }
+  return days;
+}
+function setRange(n){ chartRange=n; render(); }
+function renderChartSVG(days){
+  const w=440,h=160,padL=28,padR=10,padT=10,padB=24, innerW=w-padL-padR, innerH=h-padT-padB, stepX=innerW/(days.length-1||1);
+  const yFor=v=>padT+innerH-((v-1)/4)*innerH;
+  let segments=[],current=[];
+  days.forEach((d,i)=>{ const x=padL+i*stepX; if(d.value===null){ if(current.length){segments.push(current);current=[];} } else current.push({x,y:yFor(d.value)}); });
+  if(current.length) segments.push(current);
+  const pathFor=seg=>'M'+seg.map(p=>`${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' L');
+  const gridLines=[1,2,3,4,5].map(v=>`<line x1="${padL}" y1="${yFor(v)}" x2="${w-padR}" y2="${yFor(v)}" stroke="var(--line)" stroke-width="1"/>`).join('');
+  const emojiLabels=MOODS.map((m,i)=>`<text x="${padL-8}" y="${yFor(i+1)+4}" font-size="10" text-anchor="end">${m.e}</text>`).join('');
+  const xLabels=days.map((d,i)=>{ const show=days.length<=7||i%Math.ceil(days.length/6)===0||i===days.length-1; if(!show) return '';
+    return `<text x="${(padL+i*stepX).toFixed(1)}" y="${h-6}" font-size="9.5" text-anchor="middle" fill="var(--ink-soft)">${fmtShort(d.date)}</text>`; }).join('');
+  const lines=segments.map(seg=>`<path d="${pathFor(seg)}" fill="none" stroke="var(--rose)" stroke-width="2"/>`).join('');
+  const dots=days.filter(d=>d.value!==null).map(d=>{ const i=days.indexOf(d); const x=padL+i*stepX; const y=yFor(d.value);
+    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4" fill="${moodInfo(d.mood).c}"/>`; }).join('');
+  return `<div class="chart-draw"><svg viewBox="0 0 ${w} ${h}" style="width:100%; height:auto; display:block;">${gridLines}${emojiLabels}${lines}${dots}${xLabels}</svg></div>`;
+}
+function weekKey(){
+  const d=new Date(); const day=(d.getDay()+6)%7; // Monday=0
+  d.setDate(d.getDate()-day);
+  return d.toISOString().slice(0,10); // this week's Monday
+}
+async function ensureInsight(){
+  if(insightWeekCached===weekKey() && dashboardInsight){ render(); return; }
+  if(totalNotes()<3){ dashboardInsight=null; return; }
+  if(insightLoading) return;
+  insightLoading=true; render();
+  try{
+    const res = await fetch('/api/insight', {method:'POST'});
+    const data = await res.json();
+    if(!res.ok){ dashboardInsight = null; showToast(data.error || 'Gagal membuat pengamatan'); }
+    else{ dashboardInsight = data.text; insightWeekCached = data.week; }
+  }catch(e){ dashboardInsight = null; }
+  insightLoading=false; render();
+}
+function renderTrend(){
+  const days=seriesForRange(chartRange);
+  const withData=days.filter(d=>d.value!==null);
+  let summary='Belum cukup data untuk rentang ini.';
+  if(withData.length){
+    const avg=withData.reduce((a,b)=>a+b.value,0)/withData.length;
+    const nearest=MOOD_ORDER[Math.round(avg)-1]||'biasa';
+    const counts={}; withData.forEach(d=>counts[d.mood]=(counts[d.mood]||0)+1);
+    const most=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0][0];
+    summary=`Rata-rata ${chartRange} hari terakhir: ${moodInfo(nearest).e} ${moodInfo(nearest).l}. Paling sering: ${moodInfo(most).e} ${moodInfo(most).l} (${counts[most]}x). Tercatat ${withData.length} dari ${chartRange} hari.`;
+  }
+  const worst=hardestDayInfo();
+  return `
+    <div class="stats">
+      <div class="stat"><b>${longestStreakEver()}</b><span>Streak terpanjang</span></div>
+      <div class="stat"><b>${entriesThisMonth()}</b><span>Catatan bulan ini</span></div>
+      <div class="stat"><b>${worst?worst.day:'—'}</b><span>Hari paling berat</span></div>
+    </div>
+    <div class="range-toggle">
+      <button class="${chartRange===7?'active':''}" onclick="setRange(7)">7 hari</button>
+      <button class="${chartRange===30?'active':''}" onclick="setRange(30)">30 hari</button>
+    </div>
+    <div class="card">
+      <h2 class="section-h">Perjalanan perasaanmu</h2>
+      ${renderChartSVG(days)}
+      <div class="chart-summary">${summary}</div>
+      <div class="insight-box">
+        <div class="lbl">Pengamatan AI minggu ini</div>
+        ${insightLoading ? '<div class="skeleton" role="status" aria-label="Menganalisis pola"><span></span><span></span><span class="short"></span></div>' : (dashboardInsight || (totalNotes()<3 ? 'Isi minimal 3 catatan agar pengamatan bisa dibuat.' : 'Belum tersedia.'))}
+      </div>
+    </div>
+  `;
+}
+
+// ---------- History + export ----------
+function exportTxt(){
+  if(entries.length===0){ showToast('Belum ada catatan untuk diekspor'); return; }
+  window.location.href = '/api/export.txt';
+}
+function printReport(){
+  if(entries.length===0){ showToast('Belum ada catatan untuk dicetak'); return; }
+  const sorted=[...entries].sort((a,b)=>a.date.localeCompare(b.date));
+  document.getElementById('printArea').innerHTML = `
+    <h2 style="font-family:'Plus Jakarta Sans',sans-serif; font-weight:700;">Azzifa — Catatan Refleksi</h2>
+    <p style="color:#555; font-size:13px;">Diekspor ${fmtDate(todayStr())} · ${totalNotes()} catatan</p>
+    ${summaryText ? `<div style="margin-bottom:16px; padding:12px; border:1px solid #ddd; white-space:pre-line; font-size:13.5px; line-height:1.5;"><b>Rangkuman kegiatan (${summaryRange} hari terakhir)</b>\n${esc(summaryText)}</div>` : ''}
+    ${sorted.map(e=>`<div style="margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid #ddd;">
+      <div style="font-size:13px; color:#555;">${fmtDate(e.date)} — Mood: ${moodInfo(e.mood).l}</div>
+      ${notesOf(e).map(n=>`<div style="font-size:12.5px; font-style:italic; color:#666; margin:6px 0 2px;">${esc(n.prompt)}</div><div style="font-family:'Plus Jakarta Sans',sans-serif; font-size:14px; line-height:1.5; white-space:pre-line;">${esc(n.text)}</div>`).join('')}
+    </div>`).join('')}`;
+  window.print();
+}
+// ---------- AI summary of daily activities (History tab) ----------
+const SUMMARY_MIN_NOTES = 3;
+function setSummaryRange(n){ summaryRange=n; render(); }
+async function generateSummary(){
+  if(summaryLoading) return;
+  summaryLoading=true; summaryErr=null; render();
+  try{
+    const res = await fetch('/api/summary', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({range:summaryRange})});
+    const data = await res.json();
+    if(!res.ok){ summaryErr = data.error || 'Gagal membuat rangkuman. Coba lagi sebentar lagi.'; }
+    else{ summaryText = data.text; summaryAt = data.at; }
+  }catch(e){ summaryErr = 'Tidak bisa menghubungi server.'; }
+  summaryLoading=false; render();
+}
+function renderSummaryCard(){
+  const n=totalNotes();
+  if(n<SUMMARY_MIN_NOTES){
+    const left=SUMMARY_MIN_NOTES-n;
+    return `<div class="card summary">
+      <h2 class="section-h">Rangkuman kegiatan</h2>
+      <p class="summary-hint">Tulis ${left} catatan lagi, lalu Azzifa bisa merangkum kegiatanmu.</p>
+      <div class="progress" role="progressbar" aria-label="Catatan menuju rangkuman" aria-valuemin="0" aria-valuemax="${SUMMARY_MIN_NOTES}" aria-valuenow="${n}"><span style="width:${Math.round(n/SUMMARY_MIN_NOTES*100)}%"></span></div>
+    </div>`;
+  }
+  return `<div class="card summary" aria-busy="${summaryLoading}">
+    <h2 class="section-h">Rangkuman kegiatan</h2>
+    <div class="range-toggle">
+      <button class="${summaryRange===7?'active':''}" onclick="setSummaryRange(7)">7 hari terakhir</button>
+      <button class="${summaryRange===30?'active':''}" onclick="setSummaryRange(30)">30 hari terakhir</button>
+    </div>
+    ${summaryLoading
+      ? '<div class="skeleton" role="status" aria-label="Membuat rangkuman"><span></span><span></span><span></span><span class="short"></span></div>'
+      : (summaryText
+          ? `<p class="summary-text">${esc(summaryText)}</p><p class="summary-meta">Dibuat ${fmtDate(summaryAt)}</p>`
+          : `<p class="summary-hint">Ringkas kegiatanmu dari catatan yang sudah kamu tulis.</p>`)}
+    ${summaryErr ? `<p class="summary-err" role="alert">${esc(summaryErr)}</p>` : ''}
+    <button class="btn-soft" onclick="generateSummary()" ${summaryLoading?'disabled':''}>${summaryText?'Buat ulang rangkuman':'Rangkum kegiatanku'}</button>
+    <p class="summary-privacy">Catatan pada rentang ini dikirim ke Claude untuk dirangkum.</p>
+  </div>`;
+}
+function renderHistory(){
+  if(entries.length===0) return `<div class="card empty">${EMPTY_ILLUSTRATION}<div style="margin-top:10px;">Belum ada catatan.<br>Mulai dari tab "Hari ini".</div></div>`;
+  const sorted=[...entries].sort((a,b)=>b.date.localeCompare(a.date));
+  const idxs=sorted.map(e=>MOOD_ORDER.indexOf(e.mood)).filter(i=>i>=0);
+  const avgLabel=MOOD_ORDER[Math.round(idxs.reduce((a,b)=>a+b,0)/idxs.length)]||'biasa';
+  return `
+    <div class="stats">
+      <div class="stat"><b>${totalNotes()}</b><span>Total catatan</span></div>
+      <div class="stat"><b>${moodInfo(avgLabel).e}</b><span>Rata-rata mood</span></div>
+    </div>
+    ${renderSummaryCard()}
+    <div class="actions"><button onclick="exportTxt()">Ekspor .txt</button><button onclick="printReport()">Cetak / PDF</button></div>
+    <div class="card">
+      <h2 class="section-h">Catatan yang sudah kamu tulis</h2>
+      ${sorted.map(e=>{ const ns=notesOf(e); return `<div class="entry">
+        <div class="entry-head"><span class="dot" style="background:${moodInfo(e.mood).c}"></span><span class="entry-date">${fmtDate(e.date)} · ${moodInfo(e.mood).l}${ns.length>1?` · ${ns.length} catatan`:''}</span></div>
+        ${ns.map((n,i)=>{
+          const pendingDelete = confirmDeleteKey===(e.date+'::'+i);
+          return `<div class="note-block${i>0?' divider':''}">
+            <div class="row-head">
+              <div class="entry-prompt">${esc(n.prompt)}</div>
+              ${pendingDelete ? '' : `<button class="icon-ghost" onclick="askDeleteNote('${e.date}', ${i})" title="Hapus catatan" aria-label="Hapus catatan">${ICONS.trash}</button>`}
+            </div>
+            <div class="entry-text">${esc(n.text)}</div>
+            ${pendingDelete ? `<div class="confirm-row">
+              <span>Hapus catatan ini?</span>
+              <button class="btn-ghost-sm danger" onclick="deleteNote('${e.date}', ${i})">Ya, hapus</button>
+              <button class="btn-ghost-sm" onclick="cancelDeleteNote()">Batal</button>
+            </div>` : ''}
+          </div>`;
+        }).join('')}
+      </div>`; }).join('')}
+    </div>
+  `;
+}
+
+function render(){
+  const checkins=rollingCheckins(7);
+  const intro = introPlayed ? '' : ' intro'; introPlayed = true;
+  const pfresh = popoverFresh; popoverFresh = false;
+  const nToday = todayNotes().length;
+  let followCls = ' ghost', followText = '…';           // reserved slot until data is ready
+  if(entriesReady){
+    followText = nToday===0 ? 'Kamu belum check-in hari ini. Mulai dari perasaanmu dulu, ya.' : `Hari ini sudah ada ${nToday} catatan. Mau nambah lagi?`;
+    followCls = nudgeShown ? '' : ' late'; nudgeShown = true;
+  }
+  const dateLabel = new Date().toLocaleDateString('id-ID',{weekday:'short',day:'numeric',month:'short'});
+  document.getElementById('app').innerHTML = `
+    <header class="hero">
+      <div class="topbar">
+        <div class="topbar-brand">
+          <img src="${LOGO_URI}" alt="Logo Azzifa" width="28" height="28">
+          <span class="date">${dateLabel}</span>
+        </div>
+        <div class="topbar-actions">
+          <div class="streak-pill" title="${checkins} dari 7 hari terakhir"><span class="fire">🔥</span> <b>${checkins}</b>/7 hari</div>
+          <button class="icon-btn bell-btn${showSettings?' on':''}" onclick="openSettings()" title="Pengingat" aria-label="Pengingat harian" aria-expanded="${showSettings}">${ICONS.bell}</button>
+          <button class="icon-btn" onclick="toggleTheme()" title="Ganti tema" aria-label="Ganti tema">${getTheme()==='dark'?ICONS.sun:ICONS.moon}</button>
+        </div>
+        ${showSettings ? renderSettingsPanel(pfresh) : ''}
+      </div>
+      <h1 class="hero-h">Teman Refleksi Harian di <span class="brand-name">Azzifa</span></h1>
+      <p class="hero-sub">A Zone of Zen, Introspection, Feelings &amp; Affection.</p>
+      <div class="chat">
+        <img class="chat-avatar${intro}" src="${LOGO_URI}" alt="" width="36" height="36">
+        <div class="chat-stack">
+          <div class="chat-bubble${intro}">
+            <div class="chat-name">Azzifa</div>
+            <div class="chat-text">${getGreeting()}</div>
+          </div>
+          <div class="chat-bubble${followCls}"${followCls===' late' ? ` style="animation-delay:${intro?'.85s':'.15s'}"` : ''}${followCls===' ghost' ? ' aria-hidden="true"' : ''}><div class="chat-text">${followText}</div></div>
+        </div>
+      </div>
+      <nav class="tabs" aria-label="Menu utama">
+        <button class="${tab==='today'?'active':''}" onclick="setTab('today')">Hari ini</button>
+        <button class="${tab==='trend'?'active':''}" onclick="setTab('trend')">Dashboard</button>
+        <button class="${tab==='history'?'active':''}" onclick="setTab('history')">Riwayat</button>
+      </nav>
+    </header>
+    <main class="content">
+      ${tab==='today' ? renderToday() : tab==='trend' ? renderTrend() : renderHistory()}
+    </main>
+  `;
+  renderMicButtons();
+}
+initStorage();
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+services:
+  azzifa:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    volumes:
+      - azzifa-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  azzifa-data:
