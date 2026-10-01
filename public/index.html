@@ -440,7 +440,9 @@
   .cam-shutter:focus-visible{outline-color:#fff; outline-offset:10px;}
 
   /* ---- First-visit tour: one dimmed layer with a hole over the thing being explained ---- */
-  .tour{position:fixed; inset:0; z-index:60;}
+  .tour{position:fixed; inset:0; z-index:60; touch-action:none;}   /* a swipe on the dimmed page must not scroll it */
+  /* While touring, the page gets room below it so even the last card can be brought to the top. */
+  .touring .app{padding-bottom:85vh;}
   .tour-hole{position:fixed; border-radius:24px; box-shadow:0 0 0 200vmax rgba(24,12,17,.68); pointer-events:none;}
   .tour-card{position:fixed; width:min(360px,calc(100vw - 32px)); padding:20px; border:var(--bezel) solid transparent; border-radius:var(--r-card);
     background:linear-gradient(var(--card),var(--card)) padding-box, rgba(255,255,255,.22) border-box; box-shadow:0 40px 80px -30px rgba(0,0,0,.7);}
@@ -1008,52 +1010,82 @@ function openPhoto(id){
 function closePhoto(){ document.getElementById('lightbox')?.remove(); }
 
 // ---------- First-visit tour ----------
-// Each step points at one thing on the page (the first selector that is on screen), on the tab
-// it lives on. A step whose target is not there — an empty Riwayat, say — is shown centred.
+// Each step explains one thing on the page, on the tab it lives on.
+//   around  — highlight all of these together (things that sit next to each other)
+//   target  — highlight the first of these that is on screen
+//   when    — leave the step out when its subject is not there right now
+// A step with neither around nor target is a centred card.
+const harianFinished = () => dayMode==='daily' && todayNotes().length>=DAILY_STEPS.length && editingIdx===null;
 const TOUR = [
-  {tab:'today', title:()=>`Selamat datang, ${esc(me.name)}`, text:'Azzifa itu tempat cerita harianmu. Aku temani keliling sebentar, ya. Cuma sekitar semenit, dan bisa kamu lewati kapan saja.'},
-  {tab:'today', target:['.composer'], title:'Catatan harianmu', text:'Ini inti Azzifa: tempat kamu menulis setiap hari. Semua yang lain di aplikasi ini dibangun di sekitar kartu ini.'},
-  {tab:'today', target:['.mode-switch'], title:'Dua cara menulis', text:'<b>Harian</b> menuntunmu lewat empat langkah, dari pagi sampai penutup hari. <b>Check Up</b> memberi satu pertanyaan bebas yang bisa kamu ganti sesukamu.'},
-  {tab:'today', target:['.field-row'], title:'Tulis ceritamu', text:'Tulis apa saja, tidak perlu rapi. Tambahkan <b>#tag</b> seperti #kerja supaya gampang dicari nanti. Malas mengetik? Tekan ikon mikrofon dan ceritakan saja.'},
-  {tab:'today', target:['.photo-bar'], title:'Tambahkan foto', text:'<b>Kamera</b> untuk memotret langsung, <b>Galeri</b> untuk memilih foto yang sudah ada. Satu catatan muat sampai empat foto, dan boleh hanya foto tanpa tulisan.'},
-  {tab:'today', target:['.mood-block'], title:'Tandai perasaanmu', text:'Pilih satu yang paling pas untuk hari ini. Tidak ada jawaban salah, dan boleh kamu ganti kapan saja kalau suasana hatimu berubah.'},
-  {tab:'today', target:['.save'], title:'Simpan', text:'Tekan ini kalau sudah. Catatanmu langsung muncul di <b>Catatan hari ini</b>, dan ikon pensil di sana untuk mengubahnya. Tulisan yang belum disimpan tetap diingat kalau halaman tertutup.'},
-  {tab:'today', target:['.topbar-actions'], title:'Streak dan tema', text:'Api menunjukkan berapa hari kamu menulis dalam seminggu terakhir. Ikon <b>bulan</b> di sebelahnya untuk beralih ke mode gelap.'},
-  {tab:'today', target:['.tabs'], title:'Empat halaman', text:'<b>Hari ini</b> untuk menulis, <b>Dashboard</b> untuk melihat polamu, <b>Riwayat</b> untuk membaca lagi semua catatan, dan <b>Profil</b> untuk pengaturan. Yuk, lihat Dashboard.'},
-  {tab:'trend', target:['.bento'], title:'Ringkasan perjalananmu', text:'Streak terpanjangmu, jumlah catatan bulan ini, dan hari yang biasanya terasa paling berat.'},
-  {tab:'trend', target:['#circleCard'], title:'Streak bareng', text:'Ajak teman atau keluarga menulis bersama. Buat grup, bagikan <b>kode undangan</b>-nya, dan streak naik setiap hari kalian semua menulis. Mereka hanya melihat nama dan sudah-belum menulis, bukan isi catatanmu.'},
-  {tab:'trend', target:['.tab-trend .col-main > .card'], title:'Perjalanan perasaanmu', text:'Grafik mood 7 atau 30 hari terakhir. Di bawahnya ada pengamatan mingguan dari AI, kalau fitur itu diaktifkan di server ini.'},
-  {tab:'trend', target:['.tab-trend .col-side > .card:last-child'], title:'Kalender mood', text:'Setiap tanggal diwarnai sesuai perasaanmu hari itu. Ketuk tanggal yang berwarna untuk membuka catatannya.'},
-  {tab:'history', target:['.search'], title:'Cari dan saring', text:'Ketik kata apa saja untuk mencari. Tombol di bawahnya menyaring berdasarkan <b>favorit</b>, mood, atau #tag yang pernah kamu pakai.'},
-  {tab:'history', target:['#histList', '.tab-history .card'], title:'Semua catatanmu', text:'Di sini semua yang pernah kamu tulis. <b>Bintang</b> untuk menandai favorit, tempat sampah untuk menghapus, dan ketuk foto untuk melihatnya lebih besar.'},
-  {tab:'history', target:['.actions'], title:'Bawa pulang ceritamu', text:'Ekspor jadi teks, cetak atau simpan sebagai PDF, dan <b>cadangkan</b> ke file .json yang bisa dipulihkan lagi kapan saja, lengkap dengan fotonya.'},
-  {tab:'profile', target:['.profile-card'], title:'Profilmu', text:'Nama panggilanmu, yang juga dilihat teman di streak bareng, dan ringkasan perjalananmu. Di bawahnya kamu bisa mengganti kata sandi.'},
-  {tab:'profile', target:['.settings-card'], title:'Pengaturan', text:'Pengingat harian, tema, dan mode menulis diatur di sini. Tombol <b>Keluar</b> ada di kartu Akun di bawahnya.'},
-  {tab:'today', title:'Sekarang giliranmu', text:'Itu saja. Tidak perlu panjang, yang penting kamu mampir. Tur ini bisa dibuka lagi dari halaman Profil kapan pun kamu mau.'},
+  {tab:'today', title:()=>`Selamat datang, ${esc(me.name)}`,
+   text:'Azzifa itu tempat cerita harianmu. Aku temani keliling sebentar, ya. Kurang dari semenit, dan bisa kamu lewati kapan saja.'},
+  {tab:'today', around:['.composer .mode-switch', '.composer .mode-hint'], title:'Kartu tulis, inti Azzifa',
+   text:'Semua berpusat di kartu ini. <b>Harian</b> menuntunmu lewat empat langkah, dari pagi sampai penutup hari. <b>Check Up</b> memberi satu pertanyaan bebas yang bisa kamu ganti sesukamu.'},
+  {tab:'today', when:()=>!harianFinished(), around:['.composer .prompt-text', '.field-row', '.photo-bar'], title:'Tulis, ucapkan, atau potret',
+   text:'Jawab dengan caramu: ketik apa saja, tekan <b>mikrofon</b> untuk bercerita, atau tambahkan sampai empat foto lewat <b>Kamera</b> dan <b>Galeri</b>. Sisipkan <b>#tag</b> seperti #kerja supaya gampang dicari nanti.'},
+  {tab:'today', when:()=>!harianFinished(), around:['.mood-block', '.save'], title:'Tandai perasaanmu, lalu simpan',
+   text:'Pilih perasaan yang paling pas, lalu tekan <b>Simpan</b>. Catatanmu muncul di <b>Catatan hari ini</b>, dengan ikon pensil untuk mengubahnya. Tulisan yang belum disimpan tetap diingat kalau halaman tertutup.'},
+  {tab:'today', when:harianFinished, target:['.mood-block'], title:'Tandai perasaanmu',
+   text:'Empat langkah hari ini sudah kamu isi. Perasaan hari ini masih bisa kamu ganti di sini kapan saja, dan Check Up siap kalau mau menulis lagi.'},
+  {tab:'today', target:['.topbar-actions'], title:'Streak dan tema',
+   text:'Api menunjukkan berapa hari kamu menulis dalam seminggu terakhir. Ikon <b>bulan</b> di sebelahnya untuk beralih ke mode gelap.'},
+  {tab:'today', target:['.tabs'], title:'Empat halaman',
+   text:'<b>Hari ini</b> untuk menulis, <b>Dashboard</b> untuk melihat polamu, <b>Riwayat</b> untuk membaca lagi, dan <b>Profil</b> untuk pengaturan. Yuk, lihat Dashboard.'},
+  {tab:'trend', target:['#circleCard'], title:'Streak bareng',
+   text:'Ajak teman atau keluarga menulis bersama. Buat grup, bagikan <b>kode undangan</b>-nya, dan streak naik setiap hari kalian semua menulis. Mereka hanya melihat nama dan sudah-belum menulis, bukan isi catatanmu.'},
+  {tab:'trend', target:['.tab-trend .col-main > .card'], title:'Perjalanan perasaanmu',
+   text:'Grafik mood 7 atau 30 hari terakhir, dengan ringkasan streak di atasnya. Di bawah grafik ada pengamatan mingguan dari AI, kalau fitur itu aktif di server ini.'},
+  {tab:'trend', target:['.tab-trend .col-side > .card:last-child'], title:'Kalender mood',
+   text:'Setiap tanggal diwarnai sesuai perasaanmu hari itu. Ketuk tanggal yang berwarna untuk membuka catatannya.'},
+  {tab:'history', when:()=>entries.length>0, around:['.search', '.chips'], title:'Cari dan saring',
+   text:'Ketik kata apa saja untuk mencari. Tombol di bawahnya menyaring berdasarkan <b>favorit</b>, mood, atau #tag yang pernah kamu pakai.'},
+  {tab:'history', when:()=>entries.length>0, target:['#histList'], title:'Semua catatanmu',
+   text:'Di sini semua yang pernah kamu tulis. <b>Bintang</b> untuk menandai favorit, tempat sampah untuk menghapus, dan ketuk foto untuk melihatnya lebih besar.'},
+  {tab:'history', when:()=>entries.length===0, target:['.tab-history .card'], title:'Semua catatanmu',
+   text:'Catatanmu akan berkumpul di sini. Nanti ada kotak pencarian, saringan mood dan #tag, serta bintang untuk menandai favorit.'},
+  {tab:'history', target:['.actions'], title:'Bawa pulang ceritamu',
+   text:()=>entries.length ? 'Ekspor jadi teks, cetak atau simpan sebagai PDF, dan <b>cadangkan</b> ke file .json yang bisa dipulihkan lagi kapan saja, lengkap dengan fotonya.'
+                           : 'Punya file cadangan dari Azzifa lain? Pulihkan di sini. Setelah kamu punya catatan, tombol ekspor, cetak, dan cadangkan juga muncul di sini.'},
+  {tab:'profile', target:['.settings-card'], title:'Profil dan pengaturan',
+   text:'Di halaman ini kamu mengganti nama dan kata sandi, mengatur pengingat harian, tema, dan mode menulis. Tombol <b>Keluar</b> ada di kartu Akun.'},
+  {tab:'today', title:'Sekarang giliranmu',
+   text:'Itu saja. Tidak perlu panjang, yang penting kamu mampir. Tur ini bisa dibuka lagi dari halaman Profil kapan pun kamu mau.'},
 ];
-let tourWatch = null;
+let tourSteps = [];      // the steps of the tour in progress: TOUR without the ones that do not apply
+let tourWatch = null, tourFrame = 0;
+const resolve = v => typeof v==='function' ? v() : v;
 function startTour(){
   if(!me || tourOn) return;
   closePhoto(); closeCamera();
+  tourSteps = TOUR.filter(step=>!step.when || step.when());
   tourOn = true; tourIdx = 0;
   const box = document.createElement('div');
   box.className = 'tour'; box.id = 'tour';
   box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true'); box.setAttribute('aria-labelledby', 'tourTitle');
   box.innerHTML = '<div class="tour-hole"></div><div class="tour-card" aria-live="polite"></div>';
   document.body.appendChild(box);
-  document.documentElement.style.overflow = 'hidden';   // the page holds still while it is being explained
-  // Late arrivals (circles, the weekly observation) can move things: follow them.
-  if('ResizeObserver' in window){ tourWatch = new ResizeObserver(placeTour); tourWatch.observe(document.getElementById('app')); }
+  // The page holds still while it is being explained, and has room to scroll any card to the top.
+  document.documentElement.style.overflow = 'hidden';
+  document.documentElement.classList.add('touring');
+  // Things can still move under the tour — a late response, a rotated phone, a stray scroll — so
+  // the highlight is re-placed whenever they do.
+  if('ResizeObserver' in window){ tourWatch = new ResizeObserver(followTour); tourWatch.observe(document.getElementById('app')); }
+  window.addEventListener('scroll', followTour, {passive:true});
+  window.addEventListener('resize', followTour);
   showTourStep();
 }
+function followTour(){
+  if(tourFrame) return;
+  tourFrame = requestAnimationFrame(()=>{ tourFrame = 0; placeTour(); });
+}
 function showTourStep(){
-  const step = TOUR[tourIdx], last = tourIdx===TOUR.length-1;
+  const step = tourSteps[tourIdx], last = tourIdx===tourSteps.length-1;
   if(tab!==step.tab) setTab(step.tab);
   const card = document.querySelector('#tour .tour-card');
   card.innerHTML = `
-    <span class="eyebrow">Langkah ${tourIdx+1} dari ${TOUR.length}</span>
-    <h2 class="section-h" id="tourTitle">${typeof step.title==='function' ? step.title() : step.title}</h2>
-    <p class="tour-text">${step.text}</p>
+    <span class="eyebrow">Langkah ${tourIdx+1} dari ${tourSteps.length}</span>
+    <h2 class="section-h" id="tourTitle">${resolve(step.title)}</h2>
+    <p class="tour-text">${resolve(step.text)}</p>
     <div class="tour-actions">
       ${tourIdx>0 ? '<button class="btn-ghost-sm" onclick="tourGo(-1)">Kembali</button>' : ''}
       ${last ? '' : '<button class="btn-ghost-sm" onclick="endTour(true)">Lewati</button>'}
@@ -1063,37 +1095,57 @@ function showTourStep(){
   placeTour();
   card.querySelector('.tour-next').focus({preventScroll:true});
 }
-// Puts the hole over the step's target and the card beside it: below if there is room, else
-// above, else pinned to the bottom of the screen.
+// The elements a step points at that are actually on screen, or null.
+function tourElements(step){
+  const onScreen = q => { const e = document.querySelector(q); return e && e.getClientRects().length ? e : null; };
+  if(step.around){ const all = step.around.map(onScreen).filter(Boolean); return all.length ? all : null; }
+  const first = (step.target||[]).map(onScreen).find(Boolean);
+  return first ? [first] : null;
+}
+function boxAround(els){
+  const rects = els.map(e=>e.getBoundingClientRect());
+  return {left:Math.min(...rects.map(r=>r.left)), top:Math.min(...rects.map(r=>r.top)), right:Math.max(...rects.map(r=>r.right)), bottom:Math.max(...rects.map(r=>r.bottom))};
+}
+// Puts the hole over the step's subject and the card next to it, wherever it fits without covering
+// the subject: below, above, or beside it. Only when none of those fit (a tall card on a phone)
+// is the card pinned to the bottom, and then the hole stops above it.
 function placeTour(){
   const box = document.getElementById('tour');
   if(!box) return;
   const hole = box.querySelector('.tour-hole'), card = box.querySelector('.tour-card');
-  const vw = window.innerWidth, vh = window.innerHeight, cw = card.offsetWidth, ch = card.offsetHeight;
-  const el = (TOUR[tourIdx].target||[]).map(q=>document.querySelector(q)).find(e=>e && e.getClientRects().length);
-  if(!el){
+  const vw = window.innerWidth, vh = window.innerHeight, cw = card.offsetWidth, ch = card.offsetHeight, gap = 14;
+  const centred = x => Math.min(Math.max(16, x-cw/2), vw-cw-16);
+  const els = tourElements(tourSteps[tourIdx]);
+  if(!els){
     Object.assign(hole.style, {left:vw/2+'px', top:vh/2+'px', width:'0px', height:'0px'});
     Object.assign(card.style, {left:(vw-cw)/2+'px', top:Math.max(16,(vh-ch)/2)+'px'});
     return;
   }
-  // Bring the target just under the top of the screen (below the floating bar on desktop), which
-  // leaves the rest of the screen for the card. Things that float with the screen stay put.
+  // Bring the subject just under the top of the screen (below the floating bar on desktop).
+  // Things that float with the screen — the tab bar, the top bar — stay where they are.
   let floats = false;
-  for(let n=el; n && n!==document.body; n=n.parentElement) if(getComputedStyle(n).position==='fixed'){ floats = true; break; }
-  if(!floats) window.scrollBy({top: el.getBoundingClientRect().top - (vw>=1024 ? 110 : 72), behavior:'instant'});
-  const r = el.getBoundingClientRect();
-  const left = Math.max(8, r.left-8), top = Math.max(8, r.top-8), right = Math.min(vw-8, r.right+8), bottom = Math.min(vh-8, r.bottom+8);
-  const fitsBelow = vh-bottom>=ch+28, fitsAbove = top>=ch+28;
-  const cardTop = fitsBelow ? bottom+14 : fitsAbove ? top-14-ch : vh-ch-16;
-  // A target too tall to share the screen keeps its top part lit, above the pinned card.
-  const holeBottom = !fitsBelow && !fitsAbove && cardTop-12-top>=80 ? cardTop-12 : bottom;
-  const radius = Math.min(40, (parseFloat(getComputedStyle(el).borderTopLeftRadius)||16)+8);
+  for(let n=els[0]; n && n!==document.body; n=n.parentElement) if(getComputedStyle(n).position==='fixed'){ floats = true; break; }
+  const wanted = boxAround(els).top - (vw>=1024 ? 110 : 72);
+  if(!floats && Math.abs(wanted)>1) window.scrollBy({top:wanted, behavior:'instant'});
+  const b = boxAround(els);
+  const left = Math.max(8, b.left-8), top = Math.max(8, b.top-8), right = Math.min(vw-8, b.right+8), bottom = Math.min(vh-8, b.bottom+8);
+  let x = centred((left+right)/2), y, holeBottom = bottom;
+  if(vh-bottom >= ch+gap*2) y = bottom+gap;
+  else if(top >= ch+gap*2) y = top-gap-ch;
+  else if(vw-right >= cw+gap*2 || left >= cw+gap*2){
+    x = vw-right >= cw+gap*2 ? right+gap : left-gap-cw;
+    y = Math.min(Math.max(16, top), vh-ch-16);
+  } else {
+    y = vh-ch-16;
+    if(y-12-top >= 80) holeBottom = y-12;
+  }
+  const radius = els.length>1 ? 24 : Math.min(40, (parseFloat(getComputedStyle(els[0]).borderTopLeftRadius)||16)+8);
   Object.assign(hole.style, {left:left+'px', top:top+'px', width:(right-left)+'px', height:(holeBottom-top)+'px', borderRadius:radius+'px'});
-  Object.assign(card.style, {left:Math.min(Math.max(16,(left+right)/2-cw/2), vw-cw-16)+'px', top:cardTop+'px'});
+  Object.assign(card.style, {left:x+'px', top:y+'px'});
 }
 function tourGo(d){
   if(!tourOn) return;
-  if(tourIdx+d>=TOUR.length){ endTour(true); return; }
+  if(tourIdx+d>=tourSteps.length){ endTour(true); return; }
   tourIdx = Math.max(0, tourIdx+d);
   showTourStep();
 }
@@ -1102,8 +1154,12 @@ function endTour(finished){
   if(!tourOn) return;
   tourOn = false;
   if(tourWatch){ tourWatch.disconnect(); tourWatch = null; }
+  if(tourFrame){ cancelAnimationFrame(tourFrame); tourFrame = 0; }
+  window.removeEventListener('scroll', followTour);
+  window.removeEventListener('resize', followTour);
   document.getElementById('tour')?.remove();
   document.documentElement.style.overflow = '';
+  document.documentElement.classList.remove('touring');
   if(!finished) return;
   if(!tourDone){ tourDone = true; persistProfile({tourDone:true}); }
   if(tab!=='today') setTab('today');
