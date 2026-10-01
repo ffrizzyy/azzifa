@@ -106,7 +106,13 @@
   .tabs button.active{background:var(--clay); color:#fff; box-shadow:inset 0 1px 0 rgba(255,255,255,.25), 0 12px 20px -12px var(--clay);}
 
   /* ---- Content ---- */
-  .content{padding:0 16px; scroll-margin-top:16px;}
+  /* On phones each tab is a single column. The .col wrappers only matter on desktop, so here
+     they dissolve (display:contents) and Riwayat reorders itself: the list first, tools after. */
+  .content{padding:0 16px; scroll-margin-top:16px; display:flex; flex-direction:column;}
+  .col{display:contents;}
+  .tab-history #histList{order:1;}
+  .tab-history .summary, .tab-history .actions, .tab-history .confirm-row.block{order:2;}
+  .side-empty{display:none;}
   .card{border-radius:var(--r-card); padding:22px; margin-bottom:16px;}
   .section-h{margin:0 0 16px; font-weight:800; font-size:19px; line-height:1.25; letter-spacing:-0.025em; color:var(--ink);}
   .eyebrow + .section-h{margin-top:12px;}
@@ -367,23 +373,34 @@
   .circle .confirm-row{margin-top:14px;}
   #circleCard .summary-err{margin:12px 0 0;}
 
-  /* ---- Desktop: editorial split. Type and navigation hold the left, the journal scrolls on the right ---- */
+  /* ---- Desktop: a compact masthead (headline left, greeting right), then each tab as two
+     unequal columns using the full width. The top bar is a floating glass island that stays
+     put while the page scrolls; the tab pill is fixed separately but sits nested inside it. ---- */
   @media (min-width:1024px){
-    .app{max-width:1240px; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,540px); gap:clamp(48px,7vw,120px); align-items:start; padding:40px 48px 120px;}
+    .app{max-width:1280px; padding:106px 40px 140px;}
     .hero{padding:0;}
-    .hero-copy{margin:clamp(40px,9vh,104px) 0 0;}
-    .hero-h{font-size:clamp(52px,5.4vw,80px); margin:22px 0 20px;}
-    .hero-sub{font-size:17px; margin-bottom:36px;}
-    .chat{margin-bottom:32px; max-width:460px;}
-    .content{padding:0; scroll-margin-top:40px;}
-    .tabs{position:static; transform:none; width:min(400px,100%); background:var(--card); -webkit-backdrop-filter:none; backdrop-filter:none; box-shadow:0 0 0 1px var(--ring), inset 0 1px 1px var(--hi), var(--shadow-float);}
+    .topbar{position:fixed; z-index:20; top:28px; left:50%; transform:translateX(-50%); width:min(1200px,calc(100% - 80px)); background:var(--glass); -webkit-backdrop-filter:blur(22px) saturate(1.5); backdrop-filter:blur(22px) saturate(1.5);}
+    .hero-grid{display:grid; grid-template-columns:minmax(0,7fr) minmax(0,5fr); gap:clamp(40px,6vw,96px); align-items:end; padding:clamp(28px,5vh,56px) 8px clamp(36px,6vh,64px);}
+    .hero-copy{margin:0;}
+    .hero-h{font-size:clamp(44px,4.4vw,68px); margin:20px 0 0;}
+    .hero-sub{font-size:16px; margin:18px 0 0;}
+    .chat{margin:0;}
+    .tabs{top:32px; bottom:auto; width:auto; padding:4px; background:var(--well); -webkit-backdrop-filter:none; backdrop-filter:none; box-shadow:inset 0 0 0 1px var(--line);}
+    .tabs button{flex:none; padding:8px 24px;}
+    .content{display:grid; grid-template-columns:minmax(0,7fr) minmax(0,5fr); gap:0 28px; align-items:start; padding:0; scroll-margin-top:104px;}
+    .content > :not(.col){grid-column:1 / -1;}
+    .col{display:block; min-width:0;}
+    .tab-history{grid-template-columns:minmax(0,5fr) minmax(0,7fr);}
+    .tab-auth{grid-template-columns:minmax(0,500px); justify-content:center;}
+    .side-empty{display:block;}
     .chips{margin:0 0 6px; padding:3px 2px 14px; flex-wrap:wrap; overflow:visible;}
     .card{padding:28px;}
     .mood-card{padding:28px 18px 18px;}
     .toast{bottom:32px;}
   }
+  /* Riwayat's tools stay beside the list while it scrolls, when the window is tall enough to hold them. */
   @media (min-width:1024px) and (min-height:780px){
-    .hero{position:sticky; top:40px;}
+    .tab-history .col-side{position:sticky; top:100px;}
   }
 
   /* ---- Print report ---- */
@@ -777,6 +794,8 @@ function renderToday(){
   const val = draftText!==null ? draftText : (editing ? editing.text : '');
   const todayEntry = entries.find(e=>e.date===todayStr());
   const daySummary = todayEntry && todayEntry.daySummary ? todayEntry.daySummary : null;
+  // Desktop only: keeps the right-hand column from sitting empty on a first day.
+  const sideEmpty = !notes.length && !circles.length && !lookbacks().length;
 
   const modeSwitch = `
     <div class="mode-switch" role="group" aria-label="Mode catatan hari ini">
@@ -811,6 +830,7 @@ function renderToday(){
     </section>` : '';
 
   return `
+    <div class="col col-main">
     <section class="card mood-card" aria-labelledby="mood-h">
       <h2 class="section-h" id="mood-h">Gimana perasaanmu hari ini?</h2>
       <div class="mood-row" role="group" aria-label="Pilih mood">
@@ -820,6 +840,8 @@ function renderToday(){
     ${modeSwitch}
     ${writingCard}
     ${daySummaryCard}
+    </div>
+    <div class="col col-side">
     ${notes.length ? `<section class="card">
       <h2 class="section-h">Catatan hari ini</h2>
       ${notes.map((n,i)=>`<div class="note">
@@ -832,6 +854,8 @@ function renderToday(){
     </section>` : ''}
     <div class="circle-strip" id="circleStrip">${renderCircleStrip()}</div>
     ${renderOnThisDay()}
+    ${sideEmpty ? `<section class="card empty side-empty">${EMPTY_ILLUSTRATION}<div style="margin-top:10px;">Catatan hari ini, streak bareng, dan kilas balik akan muncul di sini.</div></section>` : ''}
+    </div>
   `;
 }
 function setTab(t){
@@ -1146,12 +1170,12 @@ function renderTrend(){
   }
   const worst=hardestDayInfo();
   return `
+    <div class="col col-main">
     <div class="bento">
       <div class="stat big"><span class="eyebrow">Streak terpanjang</span><b>${longestStreakEver()}</b><span>hari berturut-turut</span></div>
       <div class="stat"><b>${entriesThisMonth()}</b><span>Catatan bulan ini</span></div>
       <div class="stat"><b>${worst?worst.day:'—'}</b><span>Hari paling berat</span></div>
     </div>
-    <div class="card" id="circleCard">${renderCircleCard()}</div>
     <div class="range-toggle">
       <button class="${chartRange===7?'active':''}" onclick="setRange(7)">7 hari</button>
       <button class="${chartRange===30?'active':''}" onclick="setRange(30)">30 hari</button>
@@ -1165,7 +1189,11 @@ function renderTrend(){
         ${insightLoading ? '<div class="skeleton" role="status" aria-label="Menganalisis pola"><span></span><span></span><span class="short"></span></div>' : (dashboardInsight ? esc(dashboardInsight) : (totalNotes()<3 ? 'Isi minimal 3 catatan agar pengamatan bisa dibuat.' : 'Belum tersedia.'))}
       </div>
     </div>
+    </div>
+    <div class="col col-side">
+    <div class="card" id="circleCard">${renderCircleCard()}</div>
     ${renderCalendar()}
+    </div>
   `;
 }
 // ---------- History + export ----------
@@ -1357,6 +1385,7 @@ function renderHistory(){
   const idxs=entries.map(e=>MOOD_ORDER.indexOf(e.mood)).filter(i=>i>=0);
   const avgLabel=MOOD_ORDER[Math.round(idxs.reduce((a,b)=>a+b,0)/idxs.length)]||'biasa';
   return `
+    <div class="col col-side">
     <div class="bento three">
       <div class="stat"><b>${totalNotes()}</b><span>Total catatan</span></div>
       <div class="stat"><b>${totalWords().toLocaleString('id-ID')}</b><span>Kata ditulis</span></div>
@@ -1369,7 +1398,6 @@ function renderHistory(){
       ${MOODS.map(m=>`<button class="chip${histMood===m.k?' active':''}" aria-pressed="${histMood===m.k}" onclick="setHistMood('${m.k}')">${m.e} ${m.l}</button>`).join('')}
       ${allTags().map(([t])=>`<button class="chip${histTag===t?' active':''}" aria-pressed="${histTag===t}" onclick="setHistTag('${t}')">#${esc(t)}</button>`).join('')}
     </div>
-    <div class="card" id="histList">${renderHistoryList()}</div>
     ${renderSummaryCard()}
     <div class="actions">
       <button onclick="exportTxt()">Ekspor .txt</button>
@@ -1378,6 +1406,10 @@ function renderHistory(){
       <button onclick="pickImport()">Pulihkan cadangan</button>
     </div>
     ${renderBackupConfirm()}
+    </div>
+    <div class="col col-main">
+    <div class="card" id="histList">${renderHistoryList()}</div>
+    </div>
   `;
 }
 
@@ -1418,7 +1450,7 @@ function renderOnThisDay(){
 let revealObs=null;
 function armReveal(){
   if(!('IntersectionObserver' in window)) return;
-  const els=document.querySelectorAll('.content > *');
+  const els=document.querySelectorAll('.content > :not(.col), .content > .col > *');
   els.forEach(el=>el.classList.add('reveal'));
   revealObs=new IntersectionObserver(list=>{
     let i=0;
@@ -1460,6 +1492,7 @@ function render(){
         </div>
         ${authed && showSettings ? renderSettingsPanel(pfresh) : ''}
       </div>
+      <div class="hero-grid">
       <div class="hero-copy">
         <span class="eyebrow">Jurnal &amp; mood harian</span>
         <h1 class="hero-h">Teman Refleksi Harian di <span class="brand-name">Azzifa</span></h1>
@@ -1475,13 +1508,14 @@ function render(){
           <div class="chat-bubble${followCls}"${followCls===' late' ? ` style="animation-delay:${intro?'.85s':'.15s'}"` : ''}${followCls===' ghost' ? ' aria-hidden="true"' : ''}><div class="chat-text">${followText}</div></div>
         </div>
       </div>
+      </div>
       ${authed ? `<nav class="tabs" aria-label="Menu utama">
         <button class="${tab==='today'?'active':''}" onclick="setTab('today')">Hari ini</button>
         <button class="${tab==='trend'?'active':''}" onclick="setTab('trend')">Dashboard</button>
         <button class="${tab==='history'?'active':''}" onclick="setTab('history')">Riwayat</button>
       </nav>` : ''}
     </header>
-    <main class="content">
+    <main class="content tab-${authed ? tab : 'auth'}">
       ${!authed ? renderAuth() : tab==='today' ? renderToday() : tab==='trend' ? renderTrend() : renderHistory()}
     </main>
   `;
