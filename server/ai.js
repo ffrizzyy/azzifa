@@ -14,10 +14,12 @@ class ProviderError extends Error {
 }
 
 const TIMEOUT_MS = 45000;
-// The current Claude models think before they answer, and that thinking is counted against
-// max_tokens. A cap sized for the answer alone can be used up before any text is written, so
-// the request gets generous headroom; the prompts themselves keep the answer short.
-const ANTHROPIC_MIN_TOKENS = 4000;
+// Many current models — Claude, and reasoning models on OpenAI-compatible providers such as
+// gpt-oss on Groq — think before they answer, and that thinking is counted against max_tokens.
+// A cap sized for the answer alone can be used up before any text is written, so every request
+// gets generous headroom; the prompts themselves keep the answer short. AI_MIN_TOKENS lowers it
+// for a small local model whose context cannot hold that much.
+const MIN_TOKENS = Number(process.env.AI_MIN_TOKENS) || 4000;
 
 const providerName = () => (process.env.AI_PROVIDER || 'anthropic').toLowerCase();
 
@@ -53,7 +55,7 @@ async function callAnthropic(prompt, maxTokens) {
     'anthropic-version': '2023-06-01',
   }, {
     model,
-    max_tokens: Math.max(maxTokens, ANTHROPIC_MIN_TOKENS),
+    max_tokens: Math.max(maxTokens, MIN_TOKENS),
     messages: [{ role: 'user', content: prompt }],
   });
   if (!resp.ok) {
@@ -73,7 +75,7 @@ async function callAnthropic(prompt, maxTokens) {
 async function callOpenAiShaped(url, key, model, prompt, maxTokens) {
   const resp = await post(url, key ? { Authorization: `Bearer ${key}` } : {}, {
     model,
-    max_tokens: maxTokens,
+    max_tokens: Math.max(maxTokens, MIN_TOKENS),
     messages: [{ role: 'user', content: prompt }],
   });
   if (!resp.ok) {
@@ -81,8 +83,10 @@ async function callOpenAiShaped(url, key, model, prompt, maxTokens) {
     throw new ProviderError(`API di ${url} menolak permintaan (${resp.status}). ${body}`);
   }
   const data = await resp.json();
-  const text = data.choices?.[0]?.message?.content?.trim();
-  if (!text) throw new ProviderError(`API di ${url} mengembalikan respons yang tidak dikenali`);
+  const choice = data.choices?.[0];
+  const text = choice?.message?.content?.trim();
+  // finish_reason "length" with no text means the model spent the whole allowance thinking.
+  if (!text) throw new ProviderError(`API di ${url} mengembalikan respons tanpa teks (finish_reason: ${choice?.finish_reason})`);
   return text;
 }
 

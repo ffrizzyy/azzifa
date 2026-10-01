@@ -284,7 +284,7 @@ app.post('/api/insight', auth.wrap(async (req, res) => {
     return res.status(400).json({ error: 'Tulis minimal 3 catatan dulu, ya. Setelah itu pengamatan bisa dibuat.' });
   }
   const material = rows.map((r) => `${r.date} (${r.mood}): ${parseNotes(r).map((n) => n.text).join(' / ')}`).join('\n').slice(0, 9000);
-  const prompt = `Berdasarkan catatan jurnal berikut, tulis satu pengamatan pola singkat (2-3 kalimat, bahasa Indonesia, nada hangat dan suportif, bukan menghakimi) tentang mood orang ini akhir-akhir ini. Jangan mendiagnosis, jangan memberi saran medis. Tanpa markdown. Catatan:\n${material}`;
+  const prompt = `Berdasarkan catatan jurnal berikut, tulis satu pengamatan pola singkat (2-3 kalimat, bahasa Indonesia, nada hangat dan suportif, bukan menghakimi) tentang mood penulisnya akhir-akhir ini. Bicara langsung kepada penulisnya dengan kata "kamu", bukan "orang ini" atau "ia". Jangan mendiagnosis, jangan memberi saran medis. Tanpa markdown. Catatan:\n${material}`;
   await answerWithAi(req, res, prompt, 300, (text) => {
     const week = mondayOf(req.today);
     upsertSetting.run(req.user.id, 'insightWeek', week);
@@ -305,7 +305,7 @@ app.post('/api/summary', auth.wrap(async (req, res) => {
     const notes = parseNotes(r).map((n) => `- Pertanyaan: ${n.prompt}\n  Jawaban: ${String(n.text).slice(0, 600)}`).join('\n');
     return `${r.date} (mood: ${r.mood})\n${notes}`;
   }).join('\n\n').slice(0, 9000);
-  const prompt = `Kamu merangkum jurnal harian seseorang dalam bahasa Indonesia yang natural dan hangat. Tugasmu: rangkum KEGIATAN sehari-hari dari catatan di bawah.\nAturan:\n1. Tulis satu baris untuk setiap tanggal yang punya catatan, diawali tanggal singkat (contoh: "Sen 28 Sep:"), lalu satu kalimat tentang apa yang dikerjakan atau dialami hari itu.\n2. Setelah itu tulis satu paragraf pendek (2-3 kalimat) diawali "Gambaran umum:" tentang pola kegiatan atau hal yang sering muncul.\n3. Hanya pakai hal yang benar-benar tertulis. Jangan mengarang, jangan mendiagnosis, jangan memberi saran medis.\n4. Tanpa markdown, tanpa tanda bintang, tanpa judul.\n\nCatatan:\n${material}`;
+  const prompt = `Kamu merangkum jurnal harian seseorang dalam bahasa Indonesia yang natural dan hangat. Tugasmu: rangkum KEGIATAN sehari-hari dari catatan di bawah.\nAturan:\n1. Tulis satu baris untuk setiap tanggal yang punya catatan, diawali tanggal singkat (contoh: "Sen 28 Sep:"), lalu satu kalimat tentang apa yang dikerjakan atau dialami hari itu.\n2. Setelah itu tulis satu paragraf pendek (2-3 kalimat) diawali "Gambaran umum:" tentang pola kegiatan atau hal yang sering muncul.\n3. Bicara langsung kepada penulisnya dengan kata "kamu", bukan "ia" atau "dia".\n4. Hanya pakai hal yang benar-benar tertulis. Jangan mengarang, jangan mendiagnosis, jangan memberi saran medis.\n5. Tanpa markdown, tanpa tanda bintang, tanpa judul.\n\nCatatan:\n${material}`;
   await answerWithAi(req, res, prompt, 500, (text) => {
     const at = Date.now();
     upsertSetting.run(req.user.id, 'summaryText', text);
@@ -323,7 +323,7 @@ app.post('/api/entries/:date/day-summary', auth.wrap(async (req, res) => {
   const row = db.prepare('SELECT * FROM entries WHERE user_id = ? AND date = ?').get(req.user.id, date);
   if (!row) return res.status(400).json({ error: 'Belum ada catatan hari ini. Tulis dulu sedikit, ya.' });
   const material = parseNotes(row).map((n) => `- ${n.prompt}\n  ${n.text}`).join('\n').slice(0, 9000);
-  const prompt = `Rangkum kegiatan HARI INI saja (bukan beberapa hari) dalam 2-4 kalimat yang mengalir seperti cerita singkat, bahasa Indonesia yang natural dan hangat. Hanya pakai hal yang benar-benar tertulis di catatan, jangan mengarang, jangan mendiagnosis, jangan memberi saran medis. Tanpa markdown, tanpa judul.\n\nCatatan hari ini:\n${material}`;
+  const prompt = `Rangkum kegiatan HARI INI saja (bukan beberapa hari) dalam 2-4 kalimat yang mengalir seperti cerita singkat, bahasa Indonesia yang natural dan hangat. Ceritakan kepada penulisnya dengan kata "kamu". Hanya pakai hal yang benar-benar tertulis di catatan, jangan mengarang, jangan mendiagnosis, jangan memberi saran medis. Tanpa markdown, tanpa judul.\n\nCatatan hari ini:\n${material}`;
   await answerWithAi(req, res, prompt, 300, (text) => {
     const at = Date.now();
     db.prepare('UPDATE entries SET day_summary = ? WHERE user_id = ? AND date = ?').run(JSON.stringify({ text, at }), req.user.id, date);
