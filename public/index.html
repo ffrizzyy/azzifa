@@ -960,19 +960,47 @@ function hardestDayInfo(){
 }
 
 // ---------- Voice input (shared) ----------
+// Phone browsers report speech differently from desktop ones. On Android (and iOS) each new
+// result repeats everything said so far and marks it final, so adding every result to the text
+// writes the same words again and again. Two things prevent that:
+//  - on a phone the recogniser listens for one phrase at a time, without interim results;
+//  - whatever arrives, only the words not written yet are added (spokenSoFar and onresult).
+const PHONE_SPEECH = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 let recognizer=null, micTarget=null, micActive=false, micIntentionalStop=false;
+let micWritten = '';     // what the current listening session has already put into the text
+let micHeard = false;    // whether the current session produced any words
+// Everything final in a result list, as one string. With `cumulative`, a result that starts with
+// what came before replaces it instead of being added after it, and an exact repeat is dropped.
+function spokenSoFar(results, cumulative){
+  let said = '';
+  for(const r of results){
+    if(!r.isFinal) continue;
+    const t = String(r[0].transcript||'').trim();
+    if(!t) continue;
+    const a = said.toLowerCase(), b = t.toLowerCase();
+    if(cumulative && a && b.startsWith(a)) said = t;
+    else if(cumulative && a && (a===b || a.endsWith(' '+b))) continue;
+    else said = said ? said+' '+t : t;
+  }
+  return said;
+}
 function getRecognizer(){
   const SR = window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR) return null;
   if(!recognizer){
-    recognizer=new SR(); recognizer.lang='id-ID'; recognizer.continuous=true; recognizer.interimResults=true;
+    recognizer=new SR(); recognizer.lang='id-ID'; recognizer.continuous=!PHONE_SPEECH; recognizer.interimResults=!PHONE_SPEECH;
+    recognizer.onstart=()=>{ micWritten=''; micHeard=false; };
     recognizer.onresult=(ev)=>{
-      let finalText='';
-      for(let i=ev.resultIndex;i<ev.results.length;i++){ if(ev.results[i].isFinal) finalText+=ev.results[i][0].transcript; }
-      if(finalText && micTarget){
-        const el=document.getElementById(micTarget);
-        if(el){ el.value += (el.value?' ':'')+finalText.trim(); if(micTarget==='entryText') rememberDraft(el.value); }
-      }
+      const said = spokenSoFar(ev.results, PHONE_SPEECH);
+      // Count words rather than compare text: the recogniser sometimes revises an earlier word,
+      // and what is already in the note stays as it was written.
+      const words = s => s.split(/\s+/).filter(Boolean);
+      const now = words(said), before = words(micWritten);
+      if(now.length<=before.length) return;
+      const fresh = now.slice(before.length).join(' ');
+      micWritten = said; micHeard = true;
+      const el = micTarget && document.getElementById(micTarget);
+      if(el){ el.value += (el.value?' ':'')+fresh; if(micTarget==='entryText') rememberDraft(el.value); }
     };
     recognizer.onerror=(ev)=>{
       if(ev.error==='not-allowed' || ev.error==='service-not-allowed'){
@@ -983,7 +1011,9 @@ function getRecognizer(){
       // 'no-speech' is harmless — onend will decide whether to keep listening
     };
     recognizer.onend=()=>{
-      if(micActive && !micIntentionalStop){
+      // A desktop keeps listening until the mic is tapped again. A phone goes on to the next
+      // phrase only if the last one had words in it: restarting on silence would chime forever.
+      if(micActive && !micIntentionalStop && (!PHONE_SPEECH || micHeard)){
         try{ recognizer.start(); return; }catch(e){}
       }
       micActive=false; micTarget=null; renderMicButtons();
