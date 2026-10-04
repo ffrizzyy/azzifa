@@ -1,5 +1,7 @@
 # Azzifa
 
+Akses hasil deploy disini: https://azzifa.up.railway.app/
+
 Jurnal harian dengan mood tracker (beberapa catatan per hari), dashboard tren mood, pengamatan pola AI mingguan, dan rangkuman kegiatan AI — versi standalone yang bisa dijalankan sendiri atau di-deploy ke server mana pun.
 
 ## Fitur
